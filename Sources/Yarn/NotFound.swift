@@ -5,19 +5,16 @@ fileprivate let signature = [UInt8]("HTTP/1.1 404 NOT FOUND\r\n".utf8)
 fileprivate let eol = [UInt8]("\r\n".utf8)
 
 public class NotFound {
-    public var headers: Headers
-    public var body: UnsafeBufferPointer<UInt8>? {
-        didSet {
-            self.bodyLengthWithEOL = [UInt8]((body?.count ?? 0).description.utf8) + eol
-        }
+    private var headers: Headers
+    private var body: BodyRepresentable?
+    
+    public init(headers: Headers = Headers()) {
+        self.headers = headers
     }
     
-    public var bodyLengthWithEOL: [UInt8]
-    
-    init(headers: Headers = Headers(), body: UnsafeBufferPointer<UInt8>? = nil) {
+    public init(headers: Headers = Headers(), body: BodyRepresentable) {
         self.headers = headers
         self.body = body
-        self.bodyLengthWithEOL = [UInt8]((body?.count ?? 0).description.utf8) + eol
     }
     
     public func handle(_ request: Request, for client: Client) {
@@ -43,6 +40,10 @@ public class NotFound {
             
             consumed = consumed &+ contentLengthHeader.count
             
+            let body = try self.body?.makeBody()
+            
+            let bodyLengthWithEOL = [UInt8]((body?.buffer.count ?? 0).description.utf8) + eol
+            
             memcpy(pointer.advanced(by: consumed), bodyLengthWithEOL, bodyLengthWithEOL.count)
             
             consumed = consumed &+ bodyLengthWithEOL.count
@@ -52,16 +53,16 @@ public class NotFound {
             
             consumed = consumed &+ eol.count
             
-            if let body = body, body.count &- consumed < 65_536, let baseAddress = body.baseAddress {
-                memcpy(pointer.advanced(by: consumed), baseAddress, body.count)
-                consumed = consumed &+ body.count
+            if let body = body, body.buffer.count &- consumed < 65_536, let baseAddress = body.buffer.baseAddress {
+                memcpy(pointer.advanced(by: consumed), baseAddress, body.buffer.count)
+                consumed = consumed &+ body.buffer.count
                 
                 try client.send(data: pointer, withLengthOf: consumed)
             } else {
                 try client.send(data: pointer, withLengthOf: consumed)
                 
-                if let body = body, let baseAddress = body.baseAddress {
-                    try client.send(data: baseAddress, withLengthOf: body.count)
+                if let body = body, let baseAddress = body.buffer.baseAddress {
+                    try client.send(data: baseAddress, withLengthOf: body.buffer.count)
                 }
             }
         } catch {

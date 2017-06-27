@@ -15,6 +15,7 @@ public final class TCPServer {
     let queue = DispatchQueue(label: "org.openkitten.yarn.listen", qos: .userInteractive)
     var server = UnsafeMutablePointer<sockaddr_storage>.allocate(capacity: 1)
     let onConnect: ((Client) -> ())
+    let readSource: DispatchSourceRead?
     
     public init(hostname: String, port: UInt16, onConnect: @escaping ((Client) -> ())) throws {
         signal(SIGPIPE, SIG_IGN)
@@ -61,6 +62,11 @@ public final class TCPServer {
         }
         
         self.onConnect = onConnect
+        self.readSource = DispatchSource.makeReadSource(fileDescriptor: descriptor)
+        
+        self.readSource!.setCancelHandler {
+            close(self.descriptor)
+        }
     }
     
     func start() throws {
@@ -74,23 +80,27 @@ public final class TCPServer {
             throw TCPError.bindFailed
         }
         
-        queue.async {
-            while true {
-                let addr = UnsafeMutablePointer<sockaddr_storage>.allocate(capacity: 1)
-                let addrSockAddr = UnsafeMutablePointer<sockaddr>(OpaquePointer(addr))
-                var a = socklen_t(MemoryLayout<sockaddr_storage>.size)
-                let clientDescriptor = accept(self.descriptor, addrSockAddr, &a)
-                
-                guard clientDescriptor > -1 else {
-                    addr.deallocate(capacity: 1)
-                    continue
-                }
-                
-                let client = Client(descriptor: clientDescriptor, addr: addr)
-                
-                self.onConnect(client)
+        readSource?.setEventHandler {
+            let addr = UnsafeMutablePointer<sockaddr_storage>.allocate(capacity: 1)
+            let addrSockAddr = UnsafeMutablePointer<sockaddr>(OpaquePointer(addr))
+            var a = socklen_t(MemoryLayout<sockaddr_storage>.size)
+            let clientDescriptor = accept(self.descriptor, addrSockAddr, &a)
+            
+            guard clientDescriptor > -1 else {
+                addr.deallocate(capacity: 1)
+                return
             }
+            
+            let client = Client(descriptor: clientDescriptor, addr: addr)
+            
+            self.onConnect(client)
         }
+        
+        self.readSource?.resume()
+    }
+    
+    func stop() throws {
+        self.readSource?.cancel()
     }
     
     deinit {
@@ -143,6 +153,7 @@ public struct Client {
             }
             
             guard read != 0 else {
+                self.close()
                 return
             }
             

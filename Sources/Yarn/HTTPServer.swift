@@ -20,7 +20,7 @@ public class HTTPServer {
         try self.tcpServer.start()
         
         print("serving")
-        while true { sleep(300) }
+        while true { sleep(UInt32.max) }
     }
     
     public func handle(_ request: Request, for client: Client) {

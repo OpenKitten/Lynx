@@ -27,8 +27,8 @@ public class RequestPlaceholder {
     var complete = false
     
     var method: Method?
-    var path: String?
-    var headers: [HeaderKey : String]?
+    var path: Path?
+    var headers: Headers?
     
     func empty() {
         self.method = nil
@@ -91,17 +91,13 @@ public class RequestPlaceholder {
         func parsePath() {
             pointer.peek(until: 0x20, length: &length, offset: &currentPosition)
             
-            guard let path = pointer.string(until: &currentPosition) else {
-                
-                self.parsable = false
-                return
-            }
+            let path = pointer.buffer(until: &currentPosition)
             
-            self.path = path
+            self.path = Path(bytes: path)
         }
         
         func parseHeaders() {
-            var headers = [HeaderKey : String]()
+            var headers = Headers()
             var keyEnd: Int
             var keyBytes: UnsafeBufferPointer<UInt8>
             
@@ -141,12 +137,17 @@ public class RequestPlaceholder {
                     return
                 }
                 
-                guard let value = pointer.string(until: &currentPosition)?.trimmingCharacters(in: [" "]) else {
-                    parsable = false
+                pointer = pointer.advanced(by: 1)
+                
+                guard pointer.pointee == 0x20 else {
+                    correct = false
                     return
                 }
                 
-                headers[key] = value
+                // length is one less due to " "
+                currentPosition = currentPosition &- 1
+                
+                headers[key] = HeaderValue(bytes: pointer.buffer(until: &currentPosition))
             }
         }
         

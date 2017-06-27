@@ -8,12 +8,16 @@
 import Dispatch
 import Foundation
 
+public typealias RequestHandler = ((Request, Client) -> ())
+
 public class HTTPServer {
     public private(set) var tcpServer: TCPServer!
     let queue = DispatchQueue(label: "org.openkitten.yarn.clientManager", qos: .userInteractive)
+    public var handle: RequestHandler
     
-    public init(hostname: String = "0.0.0.0", port: UInt16 = 8080) throws {
-        self.tcpServer = try TCPServer(hostname: hostname, port: port, onConnect: self.connection)
+    public init(hostname: String = "0.0.0.0", port: UInt16 = 8080, handler: @escaping RequestHandler) throws {
+        self.handle = handler
+        self.tcpServer = try TCPServer(hostname: hostname, port: port, onConnect: connection)
     }
     
     public func start() throws -> Never {
@@ -23,12 +27,6 @@ public class HTTPServer {
         while true { sleep(UInt32.max) }
     }
     
-    public func handle(_ request: Request, for client: Client) {
-        do {
-            try client.send(data: message, withLengthOf: message.count)
-        } catch { print(error) }
-    }
-    
     func connection(from client: Client) {
         let requestProgress = RequestPlaceholder()
         
@@ -36,7 +34,7 @@ public class HTTPServer {
             requestProgress.parse(ptr, len: len)
             
             if requestProgress.complete, let request = requestProgress.makeRequest() {
-                client.handle(request)
+                self.handle(request, client)
                 requestProgress.empty()
             }
         }
@@ -45,23 +43,13 @@ public class HTTPServer {
 
 fileprivate let message = [UInt8]("HTTP/1.1 200 OK\r\nServer: gws\r\nContent-Type: text/html; charset=ISO-8859-1\r\nDate: Tue, 27 Jun 2017 14:54:47 GMT\r\nContent-Length: 4\r\n\r\nKaas".utf8)
 
-extension Client {
-    func handle(_ request: Request) {
-        do {
-            _ = try send(data: message, withLengthOf: message.count)
-        } catch {
-            self.close()
-        }
-    }
-}
-
 /// Class so you don't copy the data at all and treat them like a state machine
 public class Request {
     public let method: Method
-    public let path: String
-    public let headers: [HeaderKey : String]
+    public let path: Path
+    public let headers: Headers
     
-    init(with method: Method, path: String, headers: [HeaderKey:String]) {
+    init(with method: Method, path: Path, headers: Headers) {
         self.method = method
         self.path = path
         self.headers = headers

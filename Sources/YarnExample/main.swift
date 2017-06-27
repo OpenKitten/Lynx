@@ -3,7 +3,9 @@ import Yarn
 
 while true {
     do {
-        let server = try HTTPServer(port: 1234)
+        let router = TrieRouter()
+        
+        let server = try HTTPServer(port: 1234, handler: router.handler)
         try server.start()
     } catch {}
     sleep(1)

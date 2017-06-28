@@ -39,6 +39,8 @@ public struct Path : Hashable, CustomDebugStringConvertible {
         return utf8String.bytes
     }
     
+    public internal(set) var tokens = [String: String]()
+    
     internal var components: [UnsafeBufferPointer<UInt8>] {
         var components = [UnsafeBufferPointer<UInt8>]()
         var start = 0
@@ -49,9 +51,9 @@ public struct Path : Hashable, CustomDebugStringConvertible {
             
             // '/'
             if byte == 0x2f {
-                if end &- start > 1 {
+                if end &- start > 0 {
                     let pointer = UnsafePointer<UInt8>(utf8String.bytes).advanced(by: start)
-                    components.append(UnsafeBufferPointer<UInt8>(start: pointer, count: end &- start))
+                    components.append(UnsafeBufferPointer<UInt8>(start: pointer, count: end &- start &- 1))
                 }
                 
                 start = end
@@ -96,9 +98,22 @@ extension UTF8String : ExpressibleByStringLiteral {
     }
 }
 
-public enum Method : Equatable {
+public enum Method : Equatable, Hashable {
     case get, put, post, delete, patch, options
     case unknown(String)
+    
+    public var hashValue: Int {
+        switch self {
+        case .get: return 2000
+        case .put: return 2001
+        case .post: return 2002
+        case .delete: return 2003
+        case .patch: return 2004
+        case .options: return 2005
+        case .unknown(let s):  return 2006 &+ s.hashValue
+            
+        }
+    }
     
     public static func ==(lhs: Method, rhs: Method) -> Bool {
         switch (lhs, rhs) {

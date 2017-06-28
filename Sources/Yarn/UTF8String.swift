@@ -51,6 +51,10 @@ internal struct UTF8String : Hashable {
         self.init(bytes: Array(buffer))
     }
     
+    init() {
+        self.bytes = []
+    }
+    
     init(slice: ArraySlice<UInt8>) {
         self.init(bytes: Array(slice))
     }

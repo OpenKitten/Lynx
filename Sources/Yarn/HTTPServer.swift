@@ -46,8 +46,10 @@ fileprivate let message = [UInt8]("HTTP/1.1 200 OK\r\nServer: gws\r\nContent-Typ
 /// Class so you don't copy the data at all and treat them like a state machine
 public final class Request {
     public let method: Method
-    public let path: Path
+    public var path: Path
     public let headers: Headers
+    
+    // ":token" -> "value"
     
     init(with method: Method, path: Path, headers: Headers) {
         self.method = method

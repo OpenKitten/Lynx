@@ -9,8 +9,8 @@ while true {
             return "kaas"
         }
         
-        router.get("harrie", "de", "bobs") { _ in
-            return "bobs"
+        router.get("harrie", "de", "bobs") { request in
+            return request.url.queryParameters["super"] ?? "hot"
         }
         
         router.get("harrie", ":kaas", "bobs") { request in

@@ -94,9 +94,9 @@ internal final class RequestPlaceholder {
             let buffer = pointer.buffer(until: &currentPosition)
             
             // '?'
-            if let index = buffer.index(of: 0x3f) {
+            if let index = buffer.index(of: 0x3f), index &+ 1 < buffer.count {
                 let path = UnsafeBufferPointer(start: buffer.baseAddress, count: index)
-                let query = UnsafeBufferPointer(start: buffer.baseAddress?.advanced(by: index), count: buffer.count &- index)
+                let query = UnsafeBufferPointer(start: buffer.baseAddress?.advanced(by: index &+ 1), count: buffer.count &- index &- 1)
                 
                 self.path = Path(path: path, query: query)
             } else {
@@ -198,7 +198,7 @@ internal final class RequestPlaceholder {
             return nil
         }
         
-        return Request(with: method, path: path, headers: headers)
+        return Request(with: method, url: path, headers: headers)
     }
 }
 
@@ -256,5 +256,8 @@ extension UnsafePointer where Pointee == UInt8 {
             self = self.advanced(by: 3)
             return
         }
+        
+        self = self.advanced(by: length &- offset)
+        offset = length
     }
 }

@@ -36,9 +36,56 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
     }
 }
 
+public struct Query {
+    let utf8String: UTF8String
+    
+    init(pointingTo utf8String: UTF8String) {
+        self.utf8String = utf8String
+    }
+    
+    init() {
+        self.utf8String = UTF8String()
+    }
+    
+    public subscript(key: String) -> String? {
+        let key = UTF8String(bytes: [UInt8](key.utf8))
+        let slices = utf8String.slice(by: 0x26)
+        
+        // ampersand
+        for slice in slices {
+            // equals
+            if let index = slice.index(of: 0x3d) {
+                let foundKey = UnsafeBufferPointer(start: slice.baseAddress, count: index)
+                
+                if key == foundKey {
+                    guard slice.count &- index > 1 else {
+                        return ""
+                    }
+                    
+                    let value = UnsafeBufferPointer(start: slice.baseAddress?.advanced(by: index &+ 1), count: slice.count &- index)
+                    
+                    return String(bytes: value, encoding: .utf8)
+                }
+            } else if key == slice {
+                return ""
+            }
+        }
+        
+        return nil
+    }
+}
+
 public struct Path : Hashable, CustomDebugStringConvertible {
     private var utf8String: UTF8String
     private var query: UTF8String?
+    
+    public var queryParameters: Query {
+        guard let query = self.query else {
+            return Query()
+        }
+        
+        return Query(pointingTo: query)
+    }
     
     public var bytes: [UInt8] {
         guard let buffer = utf8String.makeBuffer() else {

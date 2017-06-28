@@ -11,7 +11,7 @@ open class TrieRouter {
     }
     
     public func handle(_ request: Request, for client: Client) {
-        guard let node = findNode(at: request.path.components, for: request) else {
+        guard let node = findNode(at: request.url.components, for: request) else {
             self.defaultHandler(request, client)
             return
         }
@@ -44,7 +44,7 @@ open class TrieRouter {
                         let token = subNode.component.makeString(from: 1),
                         currentIndex < path.count,
                         let value = String(bytes: path[currentIndex], encoding: .utf8) {
-                        request.path.tokens[token] = value
+                        request.url.tokens[token] = value
                     }
                     
                     node = subNode
@@ -114,7 +114,7 @@ public struct InvalidExtractionError : Error {}
 
 extension Request {
     public func extract<SI: StringInitializable>(_ initializable: SI.Type, from token: String) throws -> SI? {
-        guard let value = self.path.tokens[token] else {
+        guard let value = self.url.tokens[token] else {
             throw InvalidExtractionError()
         }
     

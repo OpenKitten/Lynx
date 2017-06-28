@@ -44,14 +44,14 @@ public final class HTTPServer {
 /// Class so you don't copy the data at all and treat them like a state machine
 public final class Request {
     public let method: Method
-    public var path: Path
+    public var url: Path
     public let headers: Headers
     
     // ":token" -> "value"
     
-    init(with method: Method, path: Path, headers: Headers) {
+    init(with method: Method, url: Path, headers: Headers) {
         self.method = method
-        self.path = path
+        self.url = url
         self.headers = headers
     }
 }

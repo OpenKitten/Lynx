@@ -134,10 +134,6 @@ internal struct UTF8String : Hashable {
 /// TODO: Copy for swift inline optimization
 
 extension UnsafePointer where Pointee == UInt8 {
-    fileprivate func string(until length: inout Int) -> String? {
-        return String(bytes: buffer(until: &length), encoding: .utf8)
-    }
-    
     fileprivate func buffer(until length: inout Int) -> UnsafeBufferPointer<UInt8> {
         // - 1 for the skipped byte
         return UnsafeBufferPointer(start: self.advanced(by: -length), count: length &- 1)
@@ -185,5 +181,8 @@ extension UnsafePointer where Pointee == UInt8 {
             self = self.advanced(by: 3)
             return
         }
+        
+        self = self.advanced(by: length &- offset)
+        offset = length
     }
 }

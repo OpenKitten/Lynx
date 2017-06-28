@@ -3,8 +3,9 @@ import Darwin
 fileprivate let contentLengthHeader = [UInt8]("Content-Length: ".utf8)
 fileprivate let eol = [UInt8]("\r\n".utf8)
 
-fileprivate let okSignature: StaticString = "HTTP/1.1 404 NOT FOUND\r\n"
-fileprivate let notFoundSignature: StaticString = "HTTP/1.1 200 OK\r\n"
+fileprivate let okSignature: StaticString = "HTTP/1.1 200 OK\r\n"
+
+fileprivate let notFoundSignature: StaticString = "HTTP/1.1 404 NOT FOUND\r\n"
 
 public enum Status {
     case ok

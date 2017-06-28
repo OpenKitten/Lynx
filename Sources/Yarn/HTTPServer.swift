@@ -41,8 +41,6 @@ public final class HTTPServer {
     }
 }
 
-fileprivate let message = [UInt8]("HTTP/1.1 200 OK\r\nServer: gws\r\nContent-Type: text/html; charset=ISO-8859-1\r\nDate: Tue, 27 Jun 2017 14:54:47 GMT\r\nContent-Length: 4\r\n\r\nKaas".utf8)
-
 /// Class so you don't copy the data at all and treat them like a state machine
 public final class Request {
     public let method: Method

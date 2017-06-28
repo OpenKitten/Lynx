@@ -45,6 +45,9 @@ internal final class RequestPlaceholder {
         self.complete = false
         self.correct = true
         self.parsable = true
+        self.contentLength = 0
+        self.bodyLength = 0
+        self.body = nil
     }
     
     func parse(_ ptr: UnsafePointer<UInt8>, len: Int) {
@@ -215,7 +218,13 @@ internal final class RequestPlaceholder {
             leftovers.append(contentsOf: UnsafeBufferPointer(start: pointer, count: length))
         }
         
-        complete = true
+        if bodyLength == contentLength {
+            complete = true
+        }
+    }
+    
+    deinit {
+        body?.deallocate(capacity: self.contentLength)
     }
     
     public func makeRequest() -> Request? {
@@ -223,7 +232,7 @@ internal final class RequestPlaceholder {
             return nil
         }
         
-        return Request(with: method, url: path, headers: headers)
+        return Request(with: method, url: path, headers: headers, body: UnsafeMutableBufferPointer(start: body, count: contentLength))
     }
 }
 

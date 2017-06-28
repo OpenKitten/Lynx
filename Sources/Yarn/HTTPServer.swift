@@ -46,11 +46,19 @@ public final class Request {
     public let method: Method
     public var url: Path
     public let headers: Headers
+    public let body: UnsafeMutableBufferPointer<UInt8>?
     
-    init(with method: Method, url: Path, headers: Headers) {
+    init(with method: Method, url: Path, headers: Headers, body: UnsafeMutableBufferPointer<UInt8>?) {
         self.method = method
         self.url = url
         self.headers = headers
+        self.body = body
+    }
+    
+    deinit {
+        if let body = body {
+            body.baseAddress?.deallocate(capacity: body.count)
+        }
     }
 }
 

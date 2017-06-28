@@ -130,7 +130,7 @@ public struct Path : Hashable, CustomDebugStringConvertible {
     }
 }
 
-extension UTF8String : ExpressibleByStringLiteral {
+extension HeaderKey : ExpressibleByStringLiteral {
     public init(stringLiteral value: String) {
         self.init(bytes: [UInt8](value.utf8))
     }

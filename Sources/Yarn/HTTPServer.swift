@@ -47,8 +47,6 @@ public final class Request {
     public var url: Path
     public let headers: Headers
     
-    // ":token" -> "value"
-    
     init(with method: Method, url: Path, headers: Headers) {
         self.method = method
         self.url = url

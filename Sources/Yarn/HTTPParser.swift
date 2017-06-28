@@ -1,4 +1,8 @@
+import Darwin
+
 typealias RequestParsedHandler = ((Request)->())
+
+fileprivate let contentLengthKey: HeaderKey = "Content-Length"
 
 internal final class RequestPlaceholder {
     init() { }
@@ -29,6 +33,9 @@ internal final class RequestPlaceholder {
     var method: Method?
     var path: Path?
     var headers: Headers?
+    var contentLength = 0
+    var bodyLength = 0
+    var body: UnsafeMutablePointer<UInt8>?
     
     func empty() {
         self.method = nil
@@ -155,7 +162,14 @@ internal final class RequestPlaceholder {
                 // length is one less due to " "
                 currentPosition = currentPosition &- 1
                 
-                headers[key] = HeaderValue(buffer: pointer.buffer(until: &currentPosition))
+                let value = HeaderValue(buffer: pointer.buffer(until: &currentPosition))
+                
+                if key == contentLengthKey, let length = Int(value.string) {
+                    self.contentLength = length
+                    self.body = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
+                }
+                
+                headers[key] = value
             }
         }
         
@@ -188,6 +202,17 @@ internal final class RequestPlaceholder {
         
         if proceedable, headers == nil {
             parseHeaders()
+        }
+        
+        if length > 0, let body = body {
+            let copiedLength = min(length, contentLength &- bodyLength)
+            memcpy(body.advanced(by: bodyLength), pointer, copiedLength)
+            length = length &- copiedLength
+            pointer = pointer.advanced(by: copiedLength)
+        }
+        
+        if length > 0 {
+            leftovers.append(contentsOf: UnsafeBufferPointer(start: pointer, count: length))
         }
         
         complete = true

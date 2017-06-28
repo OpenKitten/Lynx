@@ -1,3 +1,3 @@
-# Lion
+# Yarn
 
-A description of this package.
+An extremely high performance HTTP framework.

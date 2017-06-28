@@ -3,10 +3,13 @@ import Yarn
 
 while true {
     do {
-        let router = TrieRouter()
+        let router = VaporStyleRouter()
         
-        let server = try HTTPServer(port: 1234, handler: router.handler)
+        let server = try HTTPServer(port: 1234, handler: router.handle)
         try server.start()
-    } catch {}
-    sleep(1)
+    } catch {
+        // unable to bind to socket? retry
+        sleep(1)
+    }
 }
+

@@ -1,6 +1,6 @@
 typealias RequestParsedHandler = ((Request)->())
 
-public class RequestPlaceholder {
+internal final class RequestPlaceholder {
     init() { }
     
     var pointer: UnsafePointer<UInt8>!
@@ -93,7 +93,7 @@ public class RequestPlaceholder {
             
             let path = pointer.buffer(until: &currentPosition)
             
-            self.path = Path(bytes: path)
+            self.path = Path(buffer: path)
         }
         
         func parseHeaders() {
@@ -116,7 +116,7 @@ public class RequestPlaceholder {
                 
                 keyBytes = pointer.buffer(until: &currentPosition)
                 
-                let key = HeaderKey(bytes: keyBytes)
+                let key = HeaderKey(buffer: keyBytes)
                 
                 // Scan until \r so we capture the string
                 pointer.peek(until: 0x0d, length: &length, offset: &currentPosition)
@@ -147,7 +147,7 @@ public class RequestPlaceholder {
                 // length is one less due to " "
                 currentPosition = currentPosition &- 1
                 
-                headers[key] = HeaderValue(bytes: pointer.buffer(until: &currentPosition))
+                headers[key] = HeaderValue(buffer: pointer.buffer(until: &currentPosition))
             }
         }
         
@@ -192,11 +192,6 @@ public class RequestPlaceholder {
         
         return Request(with: method, path: path, headers: headers)
     }
-}
-
-public enum Method {
-    case get, put, post, delete, patch, options
-    case unknown(String)
 }
 
 extension UnsafePointer where Pointee == UInt8 {

@@ -10,7 +10,7 @@ import Foundation
 
 public typealias RequestHandler = ((Request, Client) -> ())
 
-public class HTTPServer {
+public final class HTTPServer {
     public private(set) var tcpServer: TCPServer!
     let queue = DispatchQueue(label: "org.openkitten.yarn.clientManager", qos: .userInteractive)
     public var handle: RequestHandler
@@ -44,7 +44,7 @@ public class HTTPServer {
 fileprivate let message = [UInt8]("HTTP/1.1 200 OK\r\nServer: gws\r\nContent-Type: text/html; charset=ISO-8859-1\r\nDate: Tue, 27 Jun 2017 14:54:47 GMT\r\nContent-Length: 4\r\n\r\nKaas".utf8)
 
 /// Class so you don't copy the data at all and treat them like a state machine
-public class Request {
+public final class Request {
     public let method: Method
     public let path: Path
     public let headers: Headers

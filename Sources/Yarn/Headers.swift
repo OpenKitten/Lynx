@@ -1,44 +1,30 @@
-public typealias HeaderValue = UTF8String
-public typealias HeaderKey = UTF8String
-public typealias Path = UTF8String
+public typealias HeaderValue = HeaderKey
 
-public struct UTF8String : Hashable, CustomDebugStringConvertible {
-    public var bytes: [UInt8] {
-        didSet {
-            hashValue = 0
-            
-            guard bytes.count > 0 else {
-                return
-            }
-            
-            for i in 0..<bytes.count {
-                hashValue = 31 &* hashValue &+ numericCast(bytes[i])
-            }
-        }
-    }
+public struct HeaderKey : Hashable, CustomDebugStringConvertible {
+    private var utf8String: UTF8String
     
-    public private(set) var hashValue = 0
+    public var bytes: [UInt8] {
+        return utf8String.bytes
+    }
     
     public var string: String {
         return String(bytes: bytes, encoding: .utf8) ?? ""
     }
     
+    public var hashValue: Int {
+        return utf8String.hashValue
+    }
+    
     public static func ==(lhs: HeaderKey, rhs: HeaderKey) -> Bool {
-        return lhs.hashValue == rhs.hashValue
+        return lhs.utf8String.bytes == rhs.utf8String.bytes
     }
     
     public init(bytes: [UInt8]) {
-        self.bytes = bytes
-        
-        if bytes.count > 0 {
-            for i in 0..<bytes.count {
-                hashValue = 31 &* hashValue &+ numericCast(bytes[i])
-            }
-        }
+        self.utf8String = UTF8String(bytes: bytes)
     }
     
-    public init(bytes: UnsafeBufferPointer<UInt8>) {
-        self.init(bytes: Array(bytes))
+    public init(buffer: UnsafeBufferPointer<UInt8>) {
+        self.utf8String = UTF8String(buffer: buffer)
     }
     
     public var debugDescription: String {
@@ -46,20 +32,85 @@ public struct UTF8String : Hashable, CustomDebugStringConvertible {
     }
 }
 
-extension HeaderKey : ExpressibleByStringLiteral {
-    /// A dictionary literal that makes this a custom ProjectionExpression
+public struct Path : Hashable, CustomDebugStringConvertible {
+    private var utf8String: UTF8String
+    
+    public var bytes: [UInt8] {
+        return utf8String.bytes
+    }
+    
+    internal var components: [UnsafeBufferPointer<UInt8>] {
+        var components = [UnsafeBufferPointer<UInt8>]()
+        var start = 0
+        var end = 0
+        
+        for byte in utf8String.bytes {
+            end = end &+ 1
+            
+            // '/'
+            if byte == 0x2f {
+                if end &- start > 1 {
+                    let pointer = UnsafePointer<UInt8>(utf8String.bytes).advanced(by: start)
+                    components.append(UnsafeBufferPointer<UInt8>(start: pointer, count: end &- start))
+                }
+                
+                start = end
+            }
+        }
+        
+        return components
+    }
+    
+    public var string: String {
+        return String(bytes: bytes, encoding: .utf8) ?? ""
+    }
+    
+    public var hashValue: Int {
+        return utf8String.hashValue
+    }
+    
+    public static func ==(lhs: Path, rhs: Path) -> Bool {
+        return lhs.utf8String.bytes == rhs.utf8String.bytes
+    }
+    
+    public init(buffer: UnsafeBufferPointer<UInt8>) {
+        self.utf8String = UTF8String(buffer: buffer)
+    }
+    
+    public var debugDescription: String {
+        return self.string
+    }
+}
+
+extension UTF8String : ExpressibleByStringLiteral {
     public init(stringLiteral value: String) {
         self.init(bytes: [UInt8](value.utf8))
     }
     
-    /// A dictionary literal that makes this a custom ProjectionExpression
     public init(unicodeScalarLiteral value: String) {
         self.init(bytes: [UInt8](value.utf8))
     }
     
-    /// A dictionary literal that makes this a custom ProjectionExpression
     public init(extendedGraphemeClusterLiteral value: String) {
         self.init(bytes: [UInt8](value.utf8))
+    }
+}
+
+public enum Method : Equatable {
+    case get, put, post, delete, patch, options
+    case unknown(String)
+    
+    public static func ==(lhs: Method, rhs: Method) -> Bool {
+        switch (lhs, rhs) {
+        case (.get, .get): return true
+        case (.put, .put): return true
+        case (.post, .post): return true
+        case (.delete, .delete): return true
+        case (.patch, .patch): return true
+        case (.options, .options): return true
+        case (.unknown(let lhsString), .unknown(let rhsString)): return lhsString == rhsString
+        default: return false
+        }
     }
 }
 

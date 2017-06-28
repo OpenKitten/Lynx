@@ -91,9 +91,17 @@ internal final class RequestPlaceholder {
         func parsePath() {
             pointer.peek(until: 0x20, length: &length, offset: &currentPosition)
             
-            let path = pointer.buffer(until: &currentPosition)
+            let buffer = pointer.buffer(until: &currentPosition)
             
-            self.path = Path(buffer: path)
+            // '?'
+            if let index = buffer.index(of: 0x3f) {
+                let path = UnsafeBufferPointer(start: buffer.baseAddress, count: index)
+                let query = UnsafeBufferPointer(start: buffer.baseAddress?.advanced(by: index), count: buffer.count &- index)
+                
+                self.path = Path(path: path, query: query)
+            } else {
+                self.path = Path(path: buffer, query: nil)
+            }
         }
         
         func parseHeaders() {

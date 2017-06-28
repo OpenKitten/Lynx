@@ -38,6 +38,7 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
 
 public struct Path : Hashable, CustomDebugStringConvertible {
     private var utf8String: UTF8String
+    private var query: UTF8String?
     
     public var bytes: [UInt8] {
         guard let buffer = utf8String.makeBuffer() else {
@@ -69,8 +70,12 @@ public struct Path : Hashable, CustomDebugStringConvertible {
         return lhs.utf8String == rhs.utf8String
     }
     
-    public init(buffer: UnsafeBufferPointer<UInt8>) {
-        self.utf8String = UTF8String(buffer: buffer)
+    public init(path: UnsafeBufferPointer<UInt8>, query: UnsafeBufferPointer<UInt8>?) {
+        self.utf8String = UTF8String(buffer: path)
+        
+        if let query = query {
+            self.query = UTF8String(buffer: query)
+        }
     }
     
     public var debugDescription: String {

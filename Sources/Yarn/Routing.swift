@@ -36,12 +36,12 @@ open class TrieRouter {
             }
             
             for subNode in node.subNodes {
-                let isToken = subNode.component.bytes.first == tokenByte && subNode.component.bytes.count > 1
+                let isToken = subNode.component.firstByte == tokenByte && subNode.component.byteCount > 1
                 
                 // colon is acceptable for tokenized strings
                 if subNode.component == component || isToken {
                     if isToken,
-                        let token = String(bytes: subNode.component.bytes[1..<subNode.component.bytes.endIndex], encoding: .utf8),
+                        let token = subNode.component.makeString(from: 1),
                         currentIndex < path.count,
                         let value = String(bytes: path[currentIndex], encoding: .utf8) {
                         request.path.tokens[token] = value
@@ -64,12 +64,12 @@ open class TrieRouter {
     
     internal func register(at path: [UTF8String], method: Method, handler: @escaping RequestHandler) {
         var node = self.node
-        var path = path.filter { $0.bytes.count > 0 }
+        var path = path.filter { $0.byteCount > 0 }
         
         var done = 0
         
         recursiveSearch: for component in path {
-            guard component.bytes.count > 0 else {
+            guard component.byteCount > 0 else {
                 continue
             }
             

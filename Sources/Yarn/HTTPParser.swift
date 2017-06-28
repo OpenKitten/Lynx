@@ -194,6 +194,8 @@ internal final class RequestPlaceholder {
     }
 }
 
+/// TODO: Copy for swift inline optimization
+
 extension UnsafePointer where Pointee == UInt8 {
     fileprivate func string(until length: inout Int) -> String? {
         return String(bytes: buffer(until: &length), encoding: .utf8)

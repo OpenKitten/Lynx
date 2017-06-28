@@ -4,11 +4,15 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
     private var utf8String: UTF8String
     
     public var bytes: [UInt8] {
-        return utf8String.bytes
+        guard let buffer = utf8String.makeBuffer() else {
+            return []
+        }
+        
+        return Array(buffer)
     }
     
     public var string: String {
-        return String(bytes: bytes, encoding: .utf8) ?? ""
+        return utf8String.makeString() ?? ""
     }
     
     public var hashValue: Int {
@@ -16,7 +20,7 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
     }
     
     public static func ==(lhs: HeaderKey, rhs: HeaderKey) -> Bool {
-        return lhs.utf8String.bytes == rhs.utf8String.bytes
+        return lhs.utf8String == rhs.utf8String
     }
     
     public init(bytes: [UInt8]) {
@@ -36,31 +40,21 @@ public struct Path : Hashable, CustomDebugStringConvertible {
     private var utf8String: UTF8String
     
     public var bytes: [UInt8] {
-        return utf8String.bytes
+        guard let buffer = utf8String.makeBuffer() else {
+            return []
+        }
+        
+        return Array(buffer)
     }
     
     public internal(set) var tokens = [String: String]()
     
+    /// Reads memory unsafelyArray
+    /// Can crash if deallocated during use
+    /// Use short-term only
     internal var components: [UnsafeBufferPointer<UInt8>] {
-        var components = [UnsafeBufferPointer<UInt8>]()
-        var start = 0
-        var end = 0
-        
-        for byte in utf8String.bytes {
-            end = end &+ 1
-            
-            // '/'
-            if byte == 0x2f {
-                if end &- start > 0 {
-                    let pointer = UnsafePointer<UInt8>(utf8String.bytes).advanced(by: start)
-                    components.append(UnsafeBufferPointer<UInt8>(start: pointer, count: end &- start &- 1))
-                }
-                
-                start = end
-            }
-        }
-        
-        return components
+        // '/'
+        return self.utf8String.slice(by: 0x2f)
     }
     
     public var string: String {
@@ -72,7 +66,7 @@ public struct Path : Hashable, CustomDebugStringConvertible {
     }
     
     public static func ==(lhs: Path, rhs: Path) -> Bool {
-        return lhs.utf8String.bytes == rhs.utf8String.bytes
+        return lhs.utf8String == rhs.utf8String
     }
     
     public init(buffer: UnsafeBufferPointer<UInt8>) {

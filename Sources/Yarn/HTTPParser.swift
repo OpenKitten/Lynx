@@ -114,65 +114,28 @@ internal final class RequestPlaceholder {
             }
         }
         
+        // TODO: malloc and no copies
         func parseHeaders() {
-            var headers = Headers()
-            var keyEnd: Int
-            var keyBytes: UnsafeBufferPointer<UInt8>
-            
-            defer { self.headers = headers }
+            let start = pointer
             
             while true {
-                // colon
-                pointer.peek(until: 0x3a, length: &length, offset: &currentPosition)
+                // \n
+                pointer.peek(until: 0x0a, length: &length, offset: &currentPosition)
                 
-                keyEnd = currentPosition
-                
-                guard keyEnd > 0 else {
+                guard currentPosition > 0 else {
                     correct = false
                     return
                 }
                 
-                keyBytes = pointer.buffer(until: &currentPosition)
-                
-                let key = HeaderKey(buffer: keyBytes)
-                
-                // Scan until \r so we capture the string
-                pointer.peek(until: 0x0d, length: &length, offset: &currentPosition)
-                
-                defer {
-                    length = length &- currentPosition
+                if length > 1, pointer[-2] == 0x0d, pointer[0] == 0x0d, pointer[1] == 0x0a {
+                    defer {
+                        pointer = pointer.advanced(by: 2)
+                        length = length &- 2
+                    }
                     
-                    // skip the \n, too
-                    pointer = pointer.advanced(by: 1)
-                }
-                
-                guard pointer.pointee == 0x0a else {
-                    correct = false
+                    self.headers = Headers(serialized: UnsafeBufferPointer(start: start, count: start!.distance(to: pointer)))
                     return
                 }
-                
-                guard currentPosition > 2 else {
-                    return
-                }
-                
-                pointer = pointer.advanced(by: 1)
-                
-                guard pointer.pointee == 0x20 else {
-                    correct = false
-                    return
-                }
-                
-                // length is one less due to " "
-                currentPosition = currentPosition &- 1
-                
-                let value = HeaderValue(buffer: pointer.buffer(until: &currentPosition))
-                
-                if key == contentLengthKey, let length = Int(value.string) {
-                    self.contentLength = length
-                    self.body = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
-                }
-                
-                headers[key] = value
             }
         }
         
@@ -190,10 +153,6 @@ internal final class RequestPlaceholder {
         
         if proceedable, !topLineComplete {
             pointer.peek(until: 0x0a, length: &length, offset: &currentPosition)
-            
-            defer {
-                length = length &- currentPosition
-            }
             
             guard pointer[-2] == 0x0d else {
                 correct = false
@@ -244,7 +203,6 @@ extension UnsafePointer where Pointee == UInt8 {
     }
     
     fileprivate func buffer(until length: inout Int) -> UnsafeBufferPointer<UInt8> {
-        // - 1 for the skipped byte
         return UnsafeBufferPointer(start: self.advanced(by: -length), count: length &- 1)
     }
     

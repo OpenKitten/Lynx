@@ -47,14 +47,14 @@ public class Response {
         
         memcpy(pointer, signature.utf8Start, consumed)
         
-        guard headers.serialized.count < 65_536 &- consumed &- eol.count else {
+        guard headers.buffer.count < 65_536 &- consumed &- eol.count else {
             fatalError()
         }
         
         // headers
-        memcpy(pointer.advanced(by: consumed), headers.serialized, headers.serialized.count)
+        memcpy(pointer.advanced(by: consumed), headers.buffer.baseAddress, headers.buffer.count)
         
-        consumed = consumed &+ headers.serialized.count
+        consumed = consumed &+ headers.buffer.count
         
         // length header
         

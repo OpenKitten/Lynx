@@ -1,7 +1,7 @@
 public typealias HeaderValue = HeaderKey
 
 public struct HeaderKey : Hashable, CustomDebugStringConvertible {
-    private var utf8String: UTF8String
+    internal var utf8String: UTF8String
     
     public var bytes: [UInt8] {
         guard let buffer = utf8String.makeBuffer() else {
@@ -175,85 +175,199 @@ public enum Method : Equatable, Hashable {
     }
 }
 
+fileprivate final class HeadersStorage {
+    var serialized: [UInt8]
+    var hashes = [(hash: Int, position: Int)]()
+    
+    init(serialized: UnsafeBufferPointer<UInt8>) {
+        self.serialized = Array(serialized)
+    }
+    
+    init() {
+        self.serialized = []
+        self.hashes = []
+    }
+}
+
 public struct Headers : ExpressibleByDictionaryLiteral {
-    public private(set) var serialized: [UInt8]
-    private var hashes: [(hash: Int, position: Int)]
+    private let storage: HeadersStorage
+    
+    init(serialized: UnsafeBufferPointer<UInt8>) {
+        self.storage = HeadersStorage(serialized: serialized)
+    }
+    
+    public var buffer: UnsafeBufferPointer<UInt8> {
+        return UnsafeBufferPointer(start: storage.serialized, count: storage.serialized.count)
+    }
     
     public subscript(key: HeaderKey) -> HeaderValue? {
         get {
-            guard let position = hashes.first(where: { $0.0 == key.hashValue })?.position else {
-                return nil
-            }
-            
-            // key + ": "
-            let start = position &+ key.bytes.count &+ 2
-            
-            guard start < serialized.count else {
-                return nil
-            }
-            
-            var buffer = [UInt8]()
-            
-            for i in start..<serialized.count {
-                // \r
-                guard serialized[i] != 0x0d else {
-                    return HeaderValue(bytes: buffer)
+            if let position = storage.hashes.first(where: { $0.0 == key.hashValue })?.position {
+                let start = position &+ key.bytes.count &+ 2
+                
+                guard start < storage.serialized.count else {
+                    return nil
                 }
                 
-                buffer.append(serialized[i])
+                for i in start..<storage.serialized.count {
+                    // \r
+                    guard storage.serialized[i] != 0x0d else {
+                        return HeaderValue(buffer: UnsafeBufferPointer(start: UnsafePointer(storage.serialized).advanced(by: start), count: i &- start))
+                    }
+                }
+                
+                return nil
             }
             
-            return nil
+            var currentPosition = storage.hashes.last?.position ?? 0
+            
+            var length: Int = storage.serialized.count
+            var pointer = UnsafePointer(storage.serialized).advanced(by: currentPosition)
+            var keyEnd = 0
+            
+            // \n
+            pointer.peek(until: 0x0a, length: &length, offset: &currentPosition)
+            
+            while true {
+                let keyPointer = pointer
+                // colon
+                pointer.peek(until: 0x3a, length: &length, offset: &currentPosition)
+                
+                keyEnd = currentPosition &- 1
+                
+                guard keyEnd > 0 else {
+                    return nil
+                }
+                
+                guard pointer.pointee == 0x20 else {
+                    return nil
+                }
+                
+                // Scan until \r so we capture the string
+                pointer.peek(until: 0x0d, length: &length, offset: &currentPosition)
+                
+                guard pointer.pointee == 0x0a else {
+                    return nil
+                }
+                
+                guard currentPosition > 1 else {
+                    return nil
+                }
+                
+                if key.bytes.count == keyEnd, key.utf8String == UnsafeBufferPointer(start: keyPointer, count: keyEnd) {
+                    currentPosition = currentPosition &- 1
+                    let buffer = pointer.buffer(until: &currentPosition)
+                    return HeaderValue(buffer: buffer)
+                }
+                
+                // skip \n
+                pointer = pointer.advanced(by: 1)
+            }
         }
         set {
-            if let index = hashes.index(where: { $0.0 == key.hashValue }) {
+            if let index = storage.hashes.index(where: { $0.0 == key.hashValue }) {
                 if let newValue = newValue {
-                    let position = hashes[index].position
+                    let position = storage.hashes[index].position
                     
                     let start = position &+ key.bytes.count
                     
                     var final: Int?
                     
-                    finalChecker: for i in start..<serialized.count {
+                    finalChecker: for i in start..<storage.serialized.count {
                         // \r
-                        if serialized[i] == 0x0d {
+                        if storage.serialized[i] == 0x0d {
                             final = i
                             break finalChecker
                         }
                     }
                     
                     if let final = final {
-                        serialized.replaceSubrange(start..<final, with: newValue.bytes)
+                        storage.serialized.replaceSubrange(start..<final, with: newValue.bytes)
                     }
                 } else {
-                    hashes.remove(at: index)
+                    storage.hashes.remove(at: index)
                 }
                 // overwrite or remove on `nil`
             } else if let newValue = newValue {
-                hashes.append((key.hashValue, serialized.endIndex))
-                serialized.append(contentsOf: key.bytes)
+                storage.hashes.append((key.hashValue, storage.serialized.endIndex))
+                storage.serialized.append(contentsOf: key.bytes)
                 
                 // ": "
-                serialized.append(0x3a)
-                serialized.append(0x20)
-                serialized.append(contentsOf: newValue.bytes)
-                serialized.append(0x0d)
-                serialized.append(0x0a)
+                storage.serialized.append(0x3a)
+                storage.serialized.append(0x20)
+                storage.serialized.append(contentsOf: newValue.bytes)
+                storage.serialized.append(0x0d)
+                storage.serialized.append(0x0a)
             }
         }
     }
     
     public init() {
-        self.serialized = []
-        self.hashes = []
+        self.storage = HeadersStorage()
     }
     
     public init(dictionaryLiteral elements: (HeaderKey, HeaderValue)...) {
-        self.serialized = []
-        self.hashes = []
+        self.storage = HeadersStorage()
         
         for (key, value) in elements {
             self[key] = value
         }
+    }
+}
+
+
+/// TODO: Copy for swift inline optimization
+
+extension UnsafePointer where Pointee == UInt8 {
+    fileprivate func buffer(until length: inout Int) -> UnsafeBufferPointer<UInt8> {
+        // - 1 for the skipped byte
+        return UnsafeBufferPointer(start: self.advanced(by: -length), count: length &- 1)
+    }
+    
+    fileprivate mutating func peek(until byte: UInt8, length: inout Int, offset: inout Int) {
+        offset = 0
+        defer { length = length &- offset }
+        
+        while offset &+ 4 < length {
+            if self[0] == byte {
+                offset = offset &+ 1
+                self = self.advanced(by: 1)
+                return
+            }
+            if self[1] == byte {
+                offset = offset &+ 2
+                self = self.advanced(by: 2)
+                return
+            }
+            if self[2] == byte {
+                offset = offset &+ 3
+                self = self.advanced(by: 3)
+                return
+            }
+            offset = offset &+ 4
+            defer { self = self.advanced(by: 4) }
+            if self[3] == byte {
+                return
+            }
+        }
+        
+        if offset < length, self[0] == byte {
+            offset = offset &+ 1
+            self = self.advanced(by: 1)
+            return
+        }
+        if offset &+ 1 < length, self[1] == byte {
+            offset = offset &+ 2
+            self = self.advanced(by: 2)
+            return
+        }
+        if offset &+ 2 < length, self[2] == byte {
+            offset = offset &+ 3
+            self = self.advanced(by: 3)
+            return
+        }
+        
+        self = self.advanced(by: length &- offset)
+        offset = length
     }
 }

@@ -60,7 +60,7 @@ internal struct UTF8String : Hashable {
         var slices = [UnsafeBufferPointer<UInt8>]()
         
         var i = 0
-        var length: Int! = buffer.bytes.count
+        var length = buffer.bytes.count
         
         while i < length {
             pointer.peek(until: byte, length: &length, offset: &i)
@@ -73,7 +73,7 @@ internal struct UTF8String : Hashable {
     func makeBuffer(from base: Int = 0, to end: Int? = nil) -> UnsafeBufferPointer<UInt8>? {
         let end = end ?? buffer.bytes.count
         
-        guard let address = buffer.bytes.baseAddress, base > 0, end < buffer.bytes.count else {
+        guard let address = buffer.bytes.baseAddress, base > -1, end <= buffer.bytes.count else {
             return nil
         }
         
@@ -139,7 +139,7 @@ extension UnsafePointer where Pointee == UInt8 {
         return UnsafeBufferPointer(start: self.advanced(by: -length), count: length &- 1)
     }
     
-    fileprivate mutating func peek(until byte: UInt8, length: inout Int!, offset: inout Int) {
+    fileprivate mutating func peek(until byte: UInt8, length: inout Int, offset: inout Int) {
         offset = 0
         defer { length = length &- offset }
         

@@ -164,22 +164,26 @@ internal final class RequestPlaceholder {
         
         if proceedable, headers == nil {
             parseHeaders()
+            
+            if let cl = headers?[contentLengthKey], let contentLength = Int(cl.string) {
+                self.contentLength = contentLength
+                self.body = UnsafeMutablePointer<UInt8>.allocate(capacity: self.contentLength)
+            }
         }
         
         if length > 0, let body = body {
             let copiedLength = min(length, contentLength &- bodyLength)
             memcpy(body.advanced(by: bodyLength), pointer, copiedLength)
             length = length &- copiedLength
+            self.bodyLength = bodyLength &+ copiedLength
             pointer = pointer.advanced(by: copiedLength)
-        }
-        
-        if length > 0 {
-            leftovers.append(contentsOf: UnsafeBufferPointer(start: pointer, count: length))
         }
         
         if bodyLength == contentLength {
             complete = true
         }
+        
+        leftovers.append(contentsOf: UnsafeBufferPointer(start: pointer, count: length))
     }
     
     deinit {
@@ -203,7 +207,7 @@ extension UnsafePointer where Pointee == UInt8 {
     }
     
     fileprivate func buffer(until length: inout Int) -> UnsafeBufferPointer<UInt8> {
-        return UnsafeBufferPointer(start: self.advanced(by: -length), count: length &- 1)
+        return UnsafeBufferPointer(start: self.advanced(by: -length), count: length)
     }
     
     fileprivate mutating func peek(until byte: UInt8, length: inout Int!, offset: inout Int) {

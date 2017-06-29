@@ -51,6 +51,36 @@ internal struct UTF8String : Hashable {
         return buffer.bytes.count
     }
     
+    static func hashValue(of buffer: UnsafeBufferPointer<UInt8>) -> Int {
+        guard buffer.count > 0 else {
+            return 0
+        }
+        
+        var hashValue = 0
+        
+        for i in 0..<buffer.count {
+            hashValue = 31 &* hashValue &+ numericCast(buffer[i])
+        }
+        
+        return hashValue
+    }
+    
+    func index(of byte: UInt8, offset: Int) -> Int? {
+        guard let pointer = self.buffer.bytes.baseAddress?.advanced(by: offset) else {
+            return nil
+        }
+        
+        guard let index = UnsafeBufferPointer(start: pointer, count: self.buffer.bytes.count &- offset).index(of: byte) else {
+            return nil
+        }
+        
+        return index &+ offset
+    }
+    
+    func byte(at index: Int) -> UInt8? {
+        return self.buffer.bytes.baseAddress?.advanced(by: index).pointee
+    }
+    
     func slice(by byte: UInt8) -> [UnsafeBufferPointer<UInt8>] {
         guard let address = buffer.bytes.baseAddress else {
             return []
@@ -62,7 +92,7 @@ internal struct UTF8String : Hashable {
         var i = 0
         var length = buffer.bytes.count
         
-        while i < length {
+        while length > 0 {
             pointer.peek(until: byte, length: &length, offset: &i)
             slices.append(pointer.buffer(until: &i))
         }

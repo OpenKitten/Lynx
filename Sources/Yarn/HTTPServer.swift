@@ -48,7 +48,7 @@ public final class Request {
     public let headers: Headers
     public let body: UnsafeMutableBufferPointer<UInt8>?
     
-    init(with method: Method, url: Path, headers: Headers, body: UnsafeMutableBufferPointer<UInt8>?) {
+    public init(with method: Method, url: Path, headers: Headers, body: UnsafeMutableBufferPointer<UInt8>?) {
         self.method = method
         self.url = url
         self.headers = headers

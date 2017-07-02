@@ -95,8 +95,12 @@ fileprivate final class HeadersStorage {
     }
 }
 
-public struct Headers : ExpressibleByDictionaryLiteral {
+public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvertible {
     private let storage: HeadersStorage
+    
+    public var debugDescription: String {
+        return String(bytes: self.buffer, encoding: .utf8) ?? ""
+    }
     
     init(serialized: UnsafeBufferPointer<UInt8>) {
         self.storage = HeadersStorage(serialized: serialized)

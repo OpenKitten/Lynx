@@ -1,5 +1,6 @@
 import Darwin
 
+/// Keeps track of a set of data, related to a UTF8 String, using COW
 internal class UTF8StringBuffer {
     internal var bytes: UnsafeMutableBufferPointer<UInt8> {
         didSet {

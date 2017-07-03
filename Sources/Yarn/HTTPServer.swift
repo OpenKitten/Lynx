@@ -11,7 +11,7 @@ import Foundation
 public typealias RequestHandler = ((Request, Client) -> ())
 
 public final class HTTPServer {
-    public private(set) var tcpServer: TCPServer!
+    internal private(set) var tcpServer: TCPServer!
     let queue = DispatchQueue(label: "org.openkitten.yarn.clientManager", qos: .userInteractive)
     public var handle: RequestHandler
     

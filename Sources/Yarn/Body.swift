@@ -1,7 +1,17 @@
+/// A response's body
+///
+/// Crafted from a mutable buffer pointer that can be deallocated
 public class Body {
+    /// The buffer with data to be returned to the client
     public let buffer: UnsafeMutableBufferPointer<UInt8>
+    
+    /// If true, deallocates the buffer on deinit of the body
     public let deallocate: Bool
     
+    /// Creates a new body for a Response from a buffer pointer
+    ///
+    /// - parameter buffer: The buffer to respond with
+    /// - parameter deallocating: If true, deallocate the provided buffer
     public init(pointingTo buffer: UnsafeMutableBufferPointer<UInt8>, deallocating: Bool) {
         self.buffer = buffer
         self.deallocate = deallocating
@@ -14,17 +24,23 @@ public class Body {
     }
 }
 
+/// Anything that can be representative of a Response Body
 public protocol BodyRepresentable {
+    /// Creates a body
     func makeBody() throws -> Body
 }
 
+/// Makes Body representative of a body (thus itself)
 extension Body : BodyRepresentable {
+    /// Creates a body from itself
     public func makeBody() throws -> Body {
         return self
     }
 }
 
+/// Makes String representative of a body
 extension String : BodyRepresentable {
+    /// Creates a body containing exclusively this String
     public func makeBody() throws -> Body {
         let allocated = UnsafeMutablePointer<UInt8>.allocate(capacity: self.utf8.count)
         allocated.initialize(from: [UInt8](self.utf8), count: self.utf8.count)

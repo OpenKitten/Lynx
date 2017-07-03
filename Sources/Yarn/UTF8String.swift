@@ -1,4 +1,8 @@
-import Darwin
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin
+#endif
 
 /// Keeps track of a set of data, related to a UTF8 String, using COW
 internal class UTF8StringBuffer {

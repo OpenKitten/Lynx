@@ -1,23 +1,32 @@
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin
+#endif
+
 import Dispatch
-import Darwin
 
-public enum TCPError : Error {
-    case bindFailed
-    case cannotSendData
-    case sendFailure
-    case cannotRead
-}
-
-fileprivate var len: socklen_t = 4
-
-public final class TCPServer {
+/// A plain TCP server that can handle incoming clients
+final class TCPServer {
+    /// The file descriptor on which connections are received
     let descriptor: Int32
+    
+    /// A queue where, asynchronously, clients are being accepted
     let queue = DispatchQueue(label: "org.openkitten.yarn.listen", qos: .userInteractive)
+    
+    /// The server's public address
     var server = UnsafeMutablePointer<sockaddr_storage>.allocate(capacity: 1)
+    
+    /// A closure to call for each connected client
     let onConnect: ((Client) -> ())
+    
+    /// A readsource that triggers when a new client connects to the descriptor
     let readSource: DispatchSourceRead?
     
-    public init(hostname: String, port: UInt16, onConnect: @escaping ((Client) -> ())) throws {
+    /// Creates a new TCPServer listening on the specify hostname and port
+    ///
+    /// Calls the `onConnect` closure for each client
+    init(hostname: String, port: UInt16, onConnect: @escaping ((Client) -> ())) throws {
         signal(SIGPIPE, SIG_IGN)
         
         var addressCriteria = addrinfo.init()
@@ -69,6 +78,7 @@ public final class TCPServer {
         }
     }
     
+    /// Starts listening for clients
     func start() throws {
         let addr =  UnsafeMutablePointer<sockaddr>(OpaquePointer(self.server))
         let addrSize = socklen_t(MemoryLayout<sockaddr_in>.size)
@@ -80,6 +90,7 @@ public final class TCPServer {
             throw TCPError.bindFailed
         }
         
+        // On every connected client, this triggers
         readSource?.setEventHandler {
             let addr = UnsafeMutablePointer<sockaddr_storage>.allocate(capacity: 1)
             let addrSockAddr = UnsafeMutablePointer<sockaddr>(OpaquePointer(addr))
@@ -99,96 +110,13 @@ public final class TCPServer {
         self.readSource?.resume()
     }
     
+    /// Stops listening for clients
     func stop() throws {
         self.readSource?.cancel()
     }
     
     deinit {
+        // Closes the file descriptor when not used anymore
         close(self.descriptor)
-    }
-}
-
-public final class Buffer {
-    public let pointer: UnsafeMutablePointer<UInt8>
-    public let capacity: Int
-    
-    public init(capacity: Int = 65_507) {
-        pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: capacity)
-        self.capacity = capacity
-    }
-    
-    deinit {
-        pointer.deallocate(capacity: capacity)
-    }
-}
-
-public typealias ReadCallback = ((UnsafePointer<UInt8>, Int)->())
-
-public struct Client {
-    private let descriptor: Int32
-    private var addr: UnsafeMutablePointer<sockaddr_storage>!
-    private static let queue = DispatchQueue(label: "org.openkitten.yarn.clientReadQueue", qos: DispatchQoS.userInteractive, attributes: .concurrent)
-    internal let readSource: DispatchSourceRead
-    public var errorHandler: ((TCPError) -> ())?
-    
-    init(descriptor: Int32, addr: UnsafeMutablePointer<sockaddr_storage>) {
-        self.descriptor = descriptor
-        self.addr = addr
-        self.readSource = DispatchSource.makeReadSource(fileDescriptor: self.descriptor, queue: Client.queue)
-        
-        self.readSource.setCancelHandler {
-            Darwin.close(descriptor)
-        }
-    }
-    
-    let incomingBuffer = Buffer()
-    
-    public func onRead(_ closure: @escaping ReadCallback) {
-        self.readSource.setEventHandler(qos: .userInteractive) {
-            let read = Darwin.recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
-            
-            guard read > -1 else {
-                self.onError(.cannotRead)
-                return
-            }
-            
-            guard read != 0 else {
-                self.close()
-                return
-            }
-            
-            closure(self.incomingBuffer.pointer, read)
-        }
-        
-        self.readSource.resume()
-    }
-    
-    func onError(_ error: TCPError) {
-        self.close()
-        
-        errorHandler?(error)
-    }
-    
-    public var isConnected: Bool {
-        var error = 0
-        getsockopt(self.descriptor, SOL_SOCKET, SO_ERROR, &error, &len)
-        
-        return error == 0
-    }
-    
-    public func send(data: [UInt8]) throws {
-        try self.send(data: data, withLengthOf: data.count)
-    }
-    
-    public func send(data pointer: UnsafePointer<UInt8>, withLengthOf length: Int) throws {
-        let sent = Darwin.send(self.descriptor, pointer, length, 0)
-        guard sent == length else {
-            throw TCPError.sendFailure
-        }
-    }
-    
-    public func close() {
-        self.readSource.cancel()
-        self.readSource.setEventHandler(handler: nil)
     }
 }

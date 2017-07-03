@@ -1,8 +1,14 @@
-import Darwin
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin
+#endif
 
+/// A constant to be used for parsing
 fileprivate let multipartContentType = [UInt8]("multipart/form-data; boundary=".utf8)
 
 extension Request {
+    /// Parses the request's body into a `MultipartForm`
     public var multipart: MultipartForm? {
         if let boundary = self.headers["Content-Type"] {
             guard memcmp(boundary.bytes, multipartContentType, multipartContentType.count) == 0 ,boundary.bytes.count > multipartContentType.count &+ 2 else {
@@ -18,17 +24,34 @@ extension Request {
     }
 }
 
-// hardcoded,
+/// Hardcoded constant for parsing
 fileprivate let contentDispositionMark = [UInt8]("Content-Disposition: ".utf8)
+
+/// Hardcoded constant for parsing
 fileprivate let formData = [UInt8]("form-data;".utf8)
+
+/// Hardcoded constant for parsing
 fileprivate let attachment = [UInt8]("attachment;".utf8)
 
+/// A parsed Multipart Form
 public final class MultipartForm {
+    /// The request containing the body
+    ///
+    /// A reference is kept to keep the pointers pointing to alive data
+    ///
+    /// This prevents unnecessary copies
     let request: Request
+    
+    /// The parsed parts
     let parts: [Part]
     
-    public struct Part : CustomDebugStringConvertible {
+    /// A single Multipart pair
+    ///
+    /// Contains a key and value
+    public struct Part {
+        /// A multipart value type
         enum PartType {
+            /// A string value
             case value
         }
         
@@ -36,11 +59,22 @@ public final class MultipartForm {
         let type: PartType
         let data: UnsafeBufferPointer<UInt8>
         
-        public var debugDescription: String {
-            return String(bytes: data, encoding: .utf8) ?? ""
+        /// The key associated with this part
+        public var key: String {
+            return String(bytes: name, encoding: .utf8) ?? ""
+        }
+        
+        /// Parses the String value associated with this part, if possible/reasonable
+        public var string: String? {
+            guard type == .value else {
+                return nil
+            }
+            
+            return String(bytes: data, encoding: .utf8)
         }
     }
     
+    /// Accesses a Part at the provided key, if there is any
     public subscript(_ key: String) -> MultipartForm.Part? {
         let key = [UInt8](key.utf8)
         
@@ -53,6 +87,7 @@ public final class MultipartForm {
         return nil
     }
     
+    /// Creates a new multipart form
     init?(boundary: [UInt8], bodyFrom request: Request) {
         guard let buffer = request.body else {
             return nil

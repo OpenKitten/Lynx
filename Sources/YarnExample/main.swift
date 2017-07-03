@@ -1,4 +1,9 @@
-import Darwin
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin
+#endif
+
 import Yarn
 
 while true {
@@ -39,14 +44,10 @@ while true {
         }
         
         router.post("login") { req in
-            print(req.query["username"])
-            print(req.query["password"])
             return ""
         }
         
         router.post("login2") { req in
-            print(req.multipart?["username"])
-            print(req.multipart?["password"])
             return ""
         }
         

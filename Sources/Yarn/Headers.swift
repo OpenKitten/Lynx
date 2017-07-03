@@ -1,3 +1,4 @@
+/// Header keys have the same properties that values have
 public typealias HeaderValue = HeaderKey
 
 public struct HeaderKey : Hashable, CustomDebugStringConvertible {

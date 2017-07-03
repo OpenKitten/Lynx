@@ -203,7 +203,7 @@ internal final class RequestPlaceholder {
     }
 }
 
-/// TODO: Copy for swift inline optimization
+// MARK - Copy for swift inline optimization
 
 extension UnsafePointer where Pointee == UInt8 {
     fileprivate func string(until length: inout Int) -> String? {

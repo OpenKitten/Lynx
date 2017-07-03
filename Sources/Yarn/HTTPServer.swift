@@ -8,11 +8,19 @@
 import Dispatch
 import Foundation
 
+/// A handler, receives a request and it's client
+///
+/// Should handle all parts of the further response itself, including closing the socket when appropriate
 public typealias RequestHandler = ((Request, Client) -> ())
 
+/// An HTTP server, takes care of most TCP features and HTTP parsing under the hood
 public final class HTTPServer {
+    /// The TCP server to receive requests on
     internal private(set) var tcpServer: TCPServer!
-    let queue = DispatchQueue(label: "org.openkitten.yarn.clientManager", qos: .userInteractive)
+    
+    /// The handler for HTTP requests
+    ///
+    /// Should *not* be changed suring whilst the server is accepting connections
     public var handle: RequestHandler
     
     public init(hostname: String = "0.0.0.0", port: UInt16 = 8080, handler: @escaping RequestHandler) throws {

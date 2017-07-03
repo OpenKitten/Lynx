@@ -228,7 +228,7 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
 }
 
 
-/// TODO: Copy for swift inline optimization
+// MARK - Copy for swift inline optimization
 
 extension UnsafePointer where Pointee == UInt8 {
     fileprivate func buffer(until length: inout Int) -> UnsafeBufferPointer<UInt8> {

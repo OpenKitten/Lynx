@@ -1,15 +1,24 @@
+/// A basic router
 open class TrieRouter {
+    /// This will be called if no route is found
     public var defaultHandler: RequestHandler = NotFound(body: "henk").handle
+    
+    /// The UTF-8 character in front of a token
+    ///
+    /// In `/users/:id/` the token is `:id` and the tokenByte is `:` as UTF-8 character
     public let tokenByte: UInt8?
     
-    init(startingTokensWith byte: UInt8? = nil) {
+    /// Creates a new router
+    public init(startingTokensWith byte: UInt8? = nil) {
         self.tokenByte = byte
     }
     
+    /// Changes the default handler
     public func handleDefault(using closure: @escaping RequestHandler) {
         self.defaultHandler = closure
     }
     
+    /// Handles a request from the HTTP server
     public func handle(_ request: Request, for client: Client) {
         guard let node = findNode(at: request.url.components, for: request) else {
             self.defaultHandler(request, client)
@@ -24,6 +33,7 @@ open class TrieRouter {
         handler(request, client)
     }
     
+    /// Finds a matching route
     fileprivate func findNode(at path: [UnsafeBufferPointer<UInt8>], for request: Request) -> TrieRouterNode? {
         var node = self.node
         var currentIndex = 0
@@ -58,10 +68,12 @@ open class TrieRouter {
         return node
     }
     
+    /// A public API for registering a new route
     public func register(at path: [String], method: Method, handler: @escaping RequestHandler) {
         self.register(at: path.flatMap { UTF8String(bytes: [UInt8]($0.utf8)) }, method: method, handler: handler)
     }
     
+    /// An internal API to register a new route with slightly more performance
     internal func register(at path: [UTF8String], method: Method, handler: @escaping RequestHandler) {
         var node = self.node
         var path = path.filter { $0.byteCount > 0 }
@@ -100,34 +112,21 @@ open class TrieRouter {
     internal var node = TrieRouterNode(at: [], component: UTF8String())
 }
 
-public protocol StringInitializable {
-    init?(from string: String) throws
-}
-
-extension String : StringInitializable {
-    public init?(from string: String) throws {
-        self = string
-    }
-}
-
-public struct InvalidExtractionError : Error {}
-
-extension Request {
-    public func extract<SI: StringInitializable>(_ initializable: SI.Type, from token: String) throws -> SI? {
-        guard let value = self.url.tokens[token] else {
-            throw InvalidExtractionError()
-        }
-    
-        return try SI(from: value)
-    }
-}
-
-public final class TrieRouterNode {
+/// A node used to keep track of routes
+final class TrieRouterNode {
+    /// All rotues at this path
     internal var leafs = [Method : RequestHandler]()
+    
+    /// This last path component
     internal var component: UTF8String
+    
+    /// All routes directly underneath this path
     internal var subNodes = [TrieRouterNode]()
+    
+    /// All previous components
     internal var components: [UTF8String]
     
+    /// Creates a new RouterNode
     internal init(at path: [UTF8String], component: UTF8String) {
         self.components = path
         self.component = component

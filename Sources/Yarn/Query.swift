@@ -1,4 +1,5 @@
-public class QueryStorage {
+/// The internal COW storage for queries
+final class QueryStorage {
     let utf8String: UTF8String
     var cache = [Int : Int]()
     
@@ -11,6 +12,7 @@ public class QueryStorage {
     }
 }
 
+/// Usable for queries in paths or query encoded forms
 public struct Query : CustomDebugStringConvertible {
     let storage: QueryStorage
     
@@ -18,14 +20,17 @@ public struct Query : CustomDebugStringConvertible {
         return self.storage.utf8String.makeString() ?? ""
     }
     
+    /// Creates a new query without unnecessary copies
     init(buffer: UnsafeBufferPointer<UInt8>) {
         self.storage = QueryStorage(buffer: buffer)
     }
     
-    init() {
+    /// Creates a new query
+    public init() {
         self.storage = QueryStorage()
     }
     
+    /// Efficiently reads values from this query
     public subscript(key: String) -> String? {
         let key = UTF8String(bytes: [UInt8](key.utf8))
         
@@ -82,6 +87,7 @@ public struct Query : CustomDebugStringConvertible {
 }
 
 extension Request {
+    /// Extracts a query from the request
     public var query: Query {
         if let body = self.body {
             return Query(buffer: UnsafeBufferPointer(start: body.baseAddress, count: body.count))

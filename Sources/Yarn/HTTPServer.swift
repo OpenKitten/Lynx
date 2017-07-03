@@ -23,11 +23,15 @@ public final class HTTPServer {
     /// Should *not* be changed suring whilst the server is accepting connections
     public var handle: RequestHandler
     
+    /// Creates a new HTTP server on a plain TCP connection to handle incoming requests
+    ///
+    /// Calls the handler for each request
     public init(hostname: String = "0.0.0.0", port: UInt16 = 8080, handler: @escaping RequestHandler) throws {
         self.handle = handler
         self.tcpServer = try TCPServer(hostname: hostname, port: port, onConnect: connection)
     }
     
+    /// Starts serving the HTTP server
     public func start() throws -> Never {
         try self.tcpServer.start()
         
@@ -35,6 +39,7 @@ public final class HTTPServer {
         while true { sleep(UInt32.max) }
     }
     
+    /// Handles an incoming client and starts HTTP parsing/responding
     func connection(from client: Client) {
         let requestProgress = RequestPlaceholder()
         
@@ -48,25 +53,3 @@ public final class HTTPServer {
         }
     }
 }
-
-/// Class so you don't copy the data at all and treat them like a state machine
-public final class Request {
-    public let method: Method
-    public var url: Path
-    public let headers: Headers
-    public let body: UnsafeMutableBufferPointer<UInt8>?
-    
-    public init(with method: Method, url: Path, headers: Headers, body: UnsafeMutableBufferPointer<UInt8>?) {
-        self.method = method
-        self.url = url
-        self.headers = headers
-        self.body = body
-    }
-    
-    deinit {
-        if let body = body {
-            body.baseAddress?.deallocate(capacity: body.count)
-        }
-    }
-}
-

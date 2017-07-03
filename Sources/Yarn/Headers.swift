@@ -1,9 +1,11 @@
 /// Header keys have the same properties that values have
 public typealias HeaderValue = HeaderKey
 
+/// An HTTP header key
 public struct HeaderKey : Hashable, CustomDebugStringConvertible {
     internal var utf8String: UTF8String
     
+    /// Accesses the internal byte buffer
     public var bytes: [UInt8] {
         guard let buffer = utf8String.makeBuffer() else {
             return []
@@ -12,80 +14,63 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
         return Array(buffer)
     }
     
+    /// Returns the string in this key
     public var string: String {
         return utf8String.makeString() ?? ""
     }
     
+    /// Hashable
     public var hashValue: Int {
         return utf8String.hashValue
     }
     
+    /// Compares two headers
     public static func ==(lhs: HeaderKey, rhs: HeaderKey) -> Bool {
         return lhs.utf8String == rhs.utf8String
     }
     
+    /// Creates a new HeaderKey from a byte buffer
     public init(bytes: [UInt8]) {
         self.utf8String = UTF8String(bytes: bytes)
     }
     
+    /// Creates a new HeaderKey from a bufferpointer
     public init(buffer: UnsafeBufferPointer<UInt8>) {
         self.utf8String = UTF8String(buffer: buffer)
     }
     
+    /// Debugging helper
     public var debugDescription: String {
         return self.string
     }
 }
 
 extension HeaderKey : ExpressibleByStringLiteral {
+    /// Instantiate a HeaderKey from a String literal
     public init(stringLiteral value: String) {
         self.init(bytes: [UInt8](value.utf8))
     }
     
+    /// Instantiate a HeaderKey from a String literal
     public init(unicodeScalarLiteral value: String) {
         self.init(bytes: [UInt8](value.utf8))
     }
     
+    /// Instantiate a HeaderKey from a String literal
     public init(extendedGraphemeClusterLiteral value: String) {
         self.init(bytes: [UInt8](value.utf8))
     }
 }
 
-public enum Method : Equatable, Hashable {
-    case get, put, post, delete, patch, options
-    case unknown(String)
-    
-    public var hashValue: Int {
-        switch self {
-        case .get: return 2000
-        case .put: return 2001
-        case .post: return 2002
-        case .delete: return 2003
-        case .patch: return 2004
-        case .options: return 2005
-        case .unknown(let s):  return 2006 &+ s.hashValue
-            
-        }
-    }
-    
-    public static func ==(lhs: Method, rhs: Method) -> Bool {
-        switch (lhs, rhs) {
-        case (.get, .get): return true
-        case (.put, .put): return true
-        case (.post, .post): return true
-        case (.delete, .delete): return true
-        case (.patch, .patch): return true
-        case (.options, .options): return true
-        case (.unknown(let lhsString), .unknown(let rhsString)): return lhsString == rhsString
-        default: return false
-        }
-    }
-}
-
+/// The internal storage of headers for COW
 fileprivate final class HeadersStorage {
+    /// The internal storage
     var serialized: [UInt8]
+    
+    /// A cache of all headers
     var hashes = [(hash: Int, position: Int)]()
     
+    /// Instantiates the headerstorage from a bufferpointer
     init(serialized: UnsafeBufferPointer<UInt8>) {
         self.serialized = Array(serialized)
     }
@@ -96,7 +81,9 @@ fileprivate final class HeadersStorage {
     }
 }
 
+/// HTTP headers
 public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvertible {
+    /// The internal storage
     private let storage: HeadersStorage
     
     public var debugDescription: String {
@@ -111,7 +98,7 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         return UnsafeBufferPointer(start: storage.serialized, count: storage.serialized.count)
     }
     
-    public subscript(key: HeaderKey) -> HeaderValue? {
+    public private(set) subscript(key: HeaderKey) -> HeaderValue? {
         get {
             if let position = storage.hashes.first(where: { $0.0 == key.hashValue })?.position {
                 let start = position &+ key.bytes.count &+ 2
@@ -214,10 +201,12 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         }
     }
     
+    /// Creates a new empty header
     public init() {
         self.storage = HeadersStorage()
     }
     
+    /// Creates a new Header from a dictionary literal
     public init(dictionaryLiteral elements: (HeaderKey, HeaderValue)...) {
         self.storage = HeadersStorage()
         

@@ -53,13 +53,19 @@ public final class VaporStyleRouter : TrieRouter {
         self.register(at: path, method: .get) { request, client in
             do {
                 let websocket: WebSocket = try self.queue.sync {
-                    guard let websocket = try WebSocket(from: request, to: client, identifiedBy: self.nextID) else {
+                    let id = self.nextID
+                    
+                    let ws = try WebSocket(from: request, to: client) {
+                        self.websockets[id] = nil
+                    }
+                    
+                    guard let websocket = ws else {
                         throw WebSocketError.couldNotConnect
                     }
                     
                     defer { self.nextID = self.nextID &+ 1}
                     
-                    self.websockets[self.nextID] = websocket
+                    self.websockets[id] = websocket
                     
                     return websocket
                 }

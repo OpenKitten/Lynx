@@ -52,6 +52,18 @@ internal final class Frame {
         var consumed = 2
         var base = base.advanced(by: 2)
         
+        if !final {
+            guard code == .continuation || code == .binary else {
+                throw WebSocketError.invalidFrame
+            }
+        }
+        
+        if code == .ping || code == .pong {
+            guard payloadLength < 126 else {
+                throw WebSocketError.invalidFrame
+            }
+        }
+        
         if payloadLength == 126 {
             payloadLength = base.withMemoryRebound(to: UInt16.self, capacity: 1, { UInt64($0.pointee) })
             

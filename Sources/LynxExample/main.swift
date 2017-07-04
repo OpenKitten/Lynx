@@ -30,7 +30,10 @@ while true {
         }
         
         router.websocket("ws") { socket in
-            
+            socket.onText { text in
+                print(text)
+                try socket.send(text)
+            }
         }
         
         router.get("login2") { _ in

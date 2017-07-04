@@ -29,6 +29,10 @@ while true {
                 ], body: body)
         }
         
+        router.websocket("ws") { socket in
+            
+        }
+        
         router.get("login2") { _ in
             let body = """
             <form action="login2" method="POST" enctype="multipart/form-data">

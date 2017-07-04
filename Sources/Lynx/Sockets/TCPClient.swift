@@ -27,16 +27,15 @@ final class Buffer {
 /// Callback that can be called for each set of received TCP data
 public typealias ReadCallback = ((UnsafePointer<UInt8>, Int)->())
 
-/// A client that connected to the TCPServer
-public struct Client {
+final class ClientHolder {
+    /// A buffer, specific to this client
+    let incomingBuffer = Buffer()
+    
     /// The client's descriptor
-    private let descriptor: Int32
+    fileprivate let descriptor: Int32
     
     /// The remote address
-    private var addr: UnsafeMutablePointer<sockaddr_storage>!
-    
-    /// The queue on which data is received
-    private static let queue = DispatchQueue(label: "org.openkitten.yarn.clientReadQueue", qos: DispatchQoS.userInteractive, attributes: .concurrent)
+    fileprivate var addr: UnsafeMutablePointer<sockaddr_storage>!
     
     /// Used to notify the `onRead` function of an update to the socket.
     ///
@@ -44,9 +43,10 @@ public struct Client {
     internal let readSource: DispatchSourceRead
     
     /// On TCP error, this gets called
-    public var errorHandler: ((TCPError) -> ())?
+    var errorHandler: ((TCPError) -> ())?
     
-    /// Creates a new Client from an incoming connection
+    var receive: ReadCallback?
+    
     init(descriptor: Int32, addr: UnsafeMutablePointer<sockaddr_storage>) {
         self.descriptor = descriptor
         self.addr = addr
@@ -57,11 +57,21 @@ public struct Client {
         }
     }
     
-    /// A buffer, specific to this client
-    let incomingBuffer = Buffer()
+    /// Closes the connection
+    func close() {
+        self.readSource.cancel()
+        self.readSource.setEventHandler(handler: nil)
+    }
     
-    /// Sets the onRead event closure
-    public func onRead(_ closure: @escaping ReadCallback) {
+    /// Returns whether the socket is actively connected
+    var isConnected: Bool {
+        var error = 0
+        getsockopt(self.descriptor, SOL_SOCKET, SO_ERROR, &error, &len)
+        
+        return error == 0
+    }
+    
+    func listen() {
         self.readSource.setEventHandler(qos: .userInteractive) {
             let read = Darwin.recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
             
@@ -76,7 +86,7 @@ public struct Client {
             }
             
             // Calls the closure with new data
-            closure(self.incomingBuffer.pointer, read)
+            self.receive?(self.incomingBuffer.pointer, read)
         }
         
         self.readSource.resume()
@@ -89,12 +99,40 @@ public struct Client {
         errorHandler?(error)
     }
     
-    /// Returns whether the socket is actively connected
+    deinit {
+        if self.isConnected {
+            self.close()
+        }
+    }
+}
+
+/// A client that connected to the TCPServer
+public struct Client {
+    let holder: ClientHolder
+    
+    /// The queue on which data is received
+    fileprivate static let queue = DispatchQueue(label: "org.openkitten.lynx.clientReadQueue", qos: DispatchQoS.userInteractive, attributes: .concurrent)
+    
+    /// Creates a new Client from an incoming connection
+    init(holder: ClientHolder) {
+        self.holder = holder
+    }
+    
+    /// Sets the onRead event closure
+    public func onRead(_ closure: @escaping ReadCallback) {
+        self.holder.receive = closure
+    }
+    
+    public func startListening() {
+        self.holder.listen()
+    }
+    
+    public func close() {
+        self.holder.close()
+    }
+    
     public var isConnected: Bool {
-        var error = 0
-        getsockopt(self.descriptor, SOL_SOCKET, SO_ERROR, &error, &len)
-        
-        return error == 0
+        return holder.isConnected
     }
     
     /// Sends new data to the client
@@ -104,16 +142,12 @@ public struct Client {
     
     /// Sends new data to the client
     public func send(data pointer: UnsafePointer<UInt8>, withLengthOf length: Int) throws {
-        let sent = Darwin.send(self.descriptor, pointer, length, 0)
+        let sent = Darwin.send(self.holder.descriptor, pointer, length, 0)
         guard sent == length else {
             throw TCPError.sendFailure
         }
     }
     
-    /// Closes the connection
-    public func close() {
-        self.readSource.cancel()
-        self.readSource.setEventHandler(handler: nil)
-    }
+    
 }
 

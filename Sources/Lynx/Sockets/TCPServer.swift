@@ -12,7 +12,7 @@ final class TCPServer {
     let descriptor: Int32
     
     /// A queue where, asynchronously, clients are being accepted
-    let queue = DispatchQueue(label: "org.openkitten.yarn.listen", qos: .userInteractive)
+    let queue = DispatchQueue(label: "org.openkitten.lynx.listen", qos: .userInteractive)
     
     /// The server's public address
     var server = UnsafeMutablePointer<sockaddr_storage>.allocate(capacity: 1)
@@ -102,9 +102,9 @@ final class TCPServer {
                 return
             }
             
-            let client = Client(descriptor: clientDescriptor, addr: addr)
+            let holder = ClientHolder(descriptor: clientDescriptor, addr: addr)
             
-            self.onConnect(client)
+            self.onConnect(Client(holder: holder))
         }
         
         self.readSource?.resume()

@@ -7,11 +7,14 @@
 fileprivate let contentLengthHeader = [UInt8]("Content-Length: ".utf8)
 fileprivate let eol = [UInt8]("\r\n".utf8)
 
+fileprivate let upgradeSignature: StaticString = "HTTP/1.1 101 Switching Protocols\r\n"
 fileprivate let okSignature: StaticString = "HTTP/1.1 200 OK\r\n"
 fileprivate let notFoundSignature: StaticString = "HTTP/1.1 404 NOT FOUND\r\n"
 
 /// The HTTP response status
 public enum Status {
+    case upgrade
+    
     case ok
     
     case notFound
@@ -19,6 +22,8 @@ public enum Status {
     /// Returns a signature, for internal purposes only
     fileprivate var signature: StaticString {
         switch self {
+        case .upgrade:
+            return upgradeSignature
         case .ok:
             return okSignature
         case .notFound:

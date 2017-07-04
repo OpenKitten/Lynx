@@ -51,5 +51,7 @@ public final class HTTPServer {
                 requestProgress.empty()
             }
         }
+        
+        client.startListening()
     }
 }

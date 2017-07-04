@@ -1,3 +1,5 @@
+import Dispatch
+
 /// Vapor API
 public final class VaporStyleRouter : TrieRouter {
     /// Creates a new router
@@ -13,7 +15,6 @@ public final class VaporStyleRouter : TrieRouter {
                 
                 try response.makeResponse().send(to: client)
             } catch {
-                print(error)
                 client.close()
             }
         }
@@ -37,6 +38,37 @@ public final class VaporStyleRouter : TrieRouter {
     /// Registers a delete route
     public func delete(_ path: String..., handler: @escaping ((Request) throws -> (ResponseRepresentable))) {
         self.register(path, method: .delete, handler: handler)
+    }
+    
+    /// All open websockets
+    public var websockets = [Int : WebSocket]()
+    
+    /// Next identifier
+    private var nextID: Int = 0
+    
+    let queue = DispatchQueue(label: "org.openkitten.lynx.websocketpool", qos: .userInteractive)
+    
+    /// Registers a websocket route
+    public func websocket(_ path: String..., handler: @escaping ((WebSocket) throws -> ())) {
+        self.register(at: path, method: .get) { request, client in
+            do {
+                let websocket: WebSocket = try self.queue.sync {
+                    guard let websocket = try WebSocket(from: request, to: client, identifiedBy: self.nextID) else {
+                        throw WebSocketError.couldNotConnect
+                    }
+                    
+                    defer { self.nextID = self.nextID &+ 1}
+                    
+                    self.websockets[self.nextID] = websocket
+                    
+                    return websocket
+                }
+                
+                try handler(websocket)
+            } catch {
+                client.close()
+            }
+        }
     }
 }
 

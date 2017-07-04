@@ -43,6 +43,30 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
     public var debugDescription: String {
         return self.string
     }
+    
+    public static func +(lhs: HeaderKey, rhs: HeaderKey) -> HeaderKey {
+        return HeaderKey(bytes: lhs.bytes + rhs.bytes)
+    }
+}
+
+extension String {
+    public init?(_ value: HeaderValue?) {
+        guard let value = value else {
+            return nil
+        }
+        
+        self = value.string
+    }
+}
+
+extension Int {
+    public init?(_ value: HeaderValue?) {
+        guard let value = value, let int = Int(value.string) else {
+            return nil
+        }
+        
+        self = int
+    }
 }
 
 extension HeaderKey : ExpressibleByStringLiteral {
@@ -122,9 +146,6 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
             var length: Int = storage.serialized.count
             var pointer = UnsafePointer(storage.serialized).advanced(by: currentPosition)
             var keyEnd = 0
-            
-            // \n
-            pointer.peek(until: 0x0a, length: &length, offset: &currentPosition)
             
             while true {
                 let keyPointer = pointer

@@ -16,6 +16,7 @@ let package = Package(
             targets: ["LynxExample"]),
     ],
     dependencies: [
+        .package(url: "http://github.com/OpenKitten/CryptoKitten.git", .branch("master"))
         // Dependencies declare other packages that this package depends on.
     ],
     targets: [
@@ -23,7 +24,7 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "Lynx",
-            dependencies: []),
+            dependencies: ["CryptoKitten"]),
         .target(
             name: "LynxExample",
             dependencies: ["Lynx"]),

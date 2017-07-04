@@ -4,7 +4,7 @@
     import Darwin
 #endif
 
-import Yarn
+import Lynx
 
 while true {
     do {

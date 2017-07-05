@@ -11,9 +11,6 @@ let package = Package(
         .library(
             name: "Lynx",
             targets: ["Lynx"]),
-        .executable(
-            name: "YarnExample",
-            targets: ["LynxExample"]),
     ],
     dependencies: [
         .package(url: "http://github.com/OpenKitten/CryptoKitten.git", .branch("master"))
@@ -25,9 +22,6 @@ let package = Package(
         .target(
             name: "Lynx",
             dependencies: ["CryptoKitten"]),
-        .target(
-            name: "LynxExample",
-            dependencies: ["Lynx"]),
         .testTarget(
             name: "Lynxtests",
             dependencies: ["Lynx"]),

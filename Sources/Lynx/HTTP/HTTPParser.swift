@@ -8,13 +8,27 @@ typealias RequestParsedHandler = ((Request)->())
 
 fileprivate let contentLengthKey: HeaderKey = "Content-Length"
 
+/// The request crafter
+///
+/// Receives data asynchronously and reads the data in the pointer until it's completely read a request
 internal final class RequestPlaceholder {
+    /// Creates a new placeholder
     init() { }
     
+    /// The pointer in which the pointer is moved
     var pointer: UnsafePointer<UInt8>!
+    
+    /// The remaining length of data behind the pointer
     var length: Int!
+    
+    /// The current offset from the pointer
     var currentPosition: Int = 0
     
+    /// If false, parsing failed and it needs to wait until the next package anymore
+    ///
+    /// This puts the remaining data in the leftovers
+    ///
+    /// TODO: Use leftovers for parsing
     var parsable = true {
         didSet {
             if parsable == false {
@@ -24,23 +38,42 @@ internal final class RequestPlaceholder {
         }
     }
     
+    /// If true, parsing can proceed
     fileprivate var proceedable: Bool {
         return correct && parsable
     }
     
+    /// Defines whether the HTTP Request is correct
     var correct = true
     
+    /// The leftover buffer from previous parsing attempts
     var leftovers = [UInt8]()
+    
+    /// If `true`, the first line of HTTP is parsed
     var topLineComplete = false
+    
+    /// If true, all components of a request have been parsed
     var complete = false
     
+    /// The request's HTTP Method
     var method: Method?
+    
+    /// The request's path, including the query
     var path: Path?
+    
+    /// All of the requests headers
     var headers: Headers?
+    
+    /// The full length of the body, including all that hasn't been received yet
     var contentLength = 0
+    
+    /// The currently copiedbodyLength
     var bodyLength = 0
+    
+    /// A buffer in which the body is kept
     var body: UnsafeMutablePointer<UInt8>?
     
+    /// Cleans up the RequestPlaceholder for a next request
     func empty() {
         self.method = nil
         self.path = nil
@@ -54,6 +87,7 @@ internal final class RequestPlaceholder {
         self.body = nil
     }
     
+    /// Parses the data at the pointer to proceed building the request
     func parse(_ ptr: UnsafePointer<UInt8>, len: Int) {
         self.pointer = ptr
         self.length = len
@@ -194,7 +228,8 @@ internal final class RequestPlaceholder {
         body?.deallocate(capacity: self.contentLength)
     }
     
-    public func makeRequest() -> Request? {
+    /// Whenn all of the request's components have been read, this creates a Request object
+    func makeRequest() -> Request? {
         guard let method = method, let path = path, let headers = headers else {
             return nil
         }

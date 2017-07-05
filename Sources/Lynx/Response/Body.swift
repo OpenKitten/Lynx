@@ -17,6 +17,15 @@ public class Body {
         self.deallocate = deallocating
     }
     
+    public convenience init(_ array: [UInt8]) {
+        let allocated = UnsafeMutablePointer<UInt8>.allocate(capacity: array.count)
+        allocated.initialize(from: array, count: array.count)
+        
+        let buffer = UnsafeMutableBufferPointer<UInt8>(start: allocated, count: array.count)
+        
+        self.init(pointingTo: buffer, deallocating: true)
+    }
+    
     deinit {
         if deallocate {
             buffer.baseAddress?.deallocate(capacity: buffer.count)

@@ -144,11 +144,11 @@ internal final class RequestPlaceholder {
             // '?'
             if let index = buffer.index(of: 0x3f), index &+ 1 < buffer.count {
                 let path = UnsafeBufferPointer(start: buffer.baseAddress, count: index)
-                let query = UnsafeBufferPointer(start: buffer.baseAddress?.advanced(by: index &+ 1), count: buffer.count &- index &- 1)
+                let query = UnsafeBufferPointer(start: buffer.baseAddress?.advanced(by: index &+ 1), count: buffer.count &- index &- 2)
                 
                 self.path = Path(path: path, query: query)
             } else {
-                self.path = Path(path: buffer, query: nil)
+                self.path = Path(path: UnsafeBufferPointer(start: buffer.baseAddress, count: buffer.count &- 1), query: nil)
             }
         }
         

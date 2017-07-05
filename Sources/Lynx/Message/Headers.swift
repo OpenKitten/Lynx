@@ -34,6 +34,10 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
         self.utf8String = UTF8String(bytes: bytes)
     }
     
+    public init(_ string: String) {
+        self.init(bytes: [UInt8](string.utf8))
+    }
+    
     /// Creates a new HeaderKey from a bufferpointer
     public init(buffer: UnsafeBufferPointer<UInt8>) {
         self.utf8String = UTF8String(buffer: buffer)
@@ -106,7 +110,7 @@ fileprivate final class HeadersStorage {
 }
 
 /// HTTP headers
-public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvertible {
+public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvertible, Sequence {
     /// The internal storage
     private let storage: HeadersStorage
     
@@ -120,6 +124,107 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
     
     var buffer: UnsafeBufferPointer<UInt8> {
         return UnsafeBufferPointer(start: storage.serialized, count: storage.serialized.count)
+    }
+    
+    public func makeIterator() -> AnyIterator<(HeaderKey, HeaderValue)> {
+        // scan all
+        search(for: nil)
+        
+        var iterator = storage.hashes.makeIterator()
+        var length: Int = storage.serialized.count
+        var currentPosition = storage.hashes.last?.position ?? 0
+        let pointer = UnsafePointer(storage.serialized)
+        var newPointer: UnsafePointer<UInt8>!
+        
+        return AnyIterator {
+            guard let (_, next) = iterator.next() else {
+                return nil
+            }
+            
+            newPointer = pointer.advanced(by: next)
+            newPointer.peek(until: 0x3a, length: &length, offset: &currentPosition)
+            
+            guard currentPosition > 0 else {
+                return nil
+            }
+            
+            guard newPointer.pointee == 0x20 else {
+                return nil
+            }
+            
+            let key = HeaderKey(buffer: newPointer.buffer(until: &currentPosition))
+            
+            // Scan until \r so we capture the string
+            newPointer.peek(until: 0x0d, length: &length, offset: &currentPosition)
+            
+            guard newPointer.pointee == 0x0a else {
+                return nil
+            }
+            
+            guard currentPosition > 1 else {
+                return nil
+            }
+            
+            currentPosition = currentPosition &- 1
+            
+            let value = HeaderValue(buffer: newPointer.buffer(until: &currentPosition))
+            
+            return (key, value)
+        }
+    }
+    
+    /// Indexes the headers
+    @discardableResult
+    fileprivate func search(for key: HeaderKey?) -> HeaderValue? {
+        var currentPosition = storage.hashes.last?.position ?? 0
+        
+        let startPointer = UnsafePointer(storage.serialized)
+        var length: Int = storage.serialized.count
+        var pointer = startPointer.advanced(by: currentPosition)
+        var keyEnd = 0
+        
+        while true {
+            let start = startPointer.distance(to: pointer)
+            let keyPointer = pointer
+            // colon
+            pointer.peek(until: 0x3a, length: &length, offset: &currentPosition)
+            
+            keyEnd = currentPosition &- 1
+            
+            guard keyEnd > 0 else {
+                return nil
+            }
+            
+            guard pointer.pointee == 0x20 else {
+                return nil
+            }
+            
+            // Scan until \r so we capture the string
+            pointer.peek(until: 0x0d, length: &length, offset: &currentPosition)
+            
+            guard pointer.pointee == 0x0a else {
+                return nil
+            }
+            
+            guard currentPosition > 1 else {
+                return nil
+            }
+            
+            let keyBuffer = UnsafeBufferPointer(start: keyPointer, count: keyEnd)
+            
+            self.storage.hashes.append((UTF8String.hashValue(of: keyBuffer), start))
+            
+            if let key = key {
+                if key.bytes.count == keyEnd, key.utf8String == keyBuffer {
+                    currentPosition = currentPosition &- 1
+                    let buffer = pointer.buffer(until: &currentPosition)
+                    return HeaderValue(buffer: buffer)
+                }
+            }
+                
+            // skip \n
+            pointer = pointer.advanced(by: 1)
+        }
     }
     
     public private(set) subscript(key: HeaderKey) -> HeaderValue? {
@@ -141,47 +246,7 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
                 return nil
             }
             
-            var currentPosition = storage.hashes.last?.position ?? 0
-            
-            var length: Int = storage.serialized.count
-            var pointer = UnsafePointer(storage.serialized).advanced(by: currentPosition)
-            var keyEnd = 0
-            
-            while true {
-                let keyPointer = pointer
-                // colon
-                pointer.peek(until: 0x3a, length: &length, offset: &currentPosition)
-                
-                keyEnd = currentPosition &- 1
-                
-                guard keyEnd > 0 else {
-                    return nil
-                }
-                
-                guard pointer.pointee == 0x20 else {
-                    return nil
-                }
-                
-                // Scan until \r so we capture the string
-                pointer.peek(until: 0x0d, length: &length, offset: &currentPosition)
-                
-                guard pointer.pointee == 0x0a else {
-                    return nil
-                }
-                
-                guard currentPosition > 1 else {
-                    return nil
-                }
-                
-                if key.bytes.count == keyEnd, key.utf8String == UnsafeBufferPointer(start: keyPointer, count: keyEnd) {
-                    currentPosition = currentPosition &- 1
-                    let buffer = pointer.buffer(until: &currentPosition)
-                    return HeaderValue(buffer: buffer)
-                }
-                
-                // skip \n
-                pointer = pointer.advanced(by: 1)
-            }
+            return self.search(for: key)
         }
         // TODO: UPDATE CACHE
         set {
@@ -228,12 +293,17 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
     }
     
     /// Creates a new Header from a dictionary literal
-    public init(dictionaryLiteral elements: (HeaderKey, HeaderValue)...) {
+    public init(dictionaryElements elements: [(HeaderKey, HeaderValue)]) {
         self.storage = HeadersStorage()
         
         for (key, value) in elements {
             self[key] = value
         }
+    }
+    
+    /// Creates a new Header from a dictionary literal
+    public init(dictionaryLiteral elements: (HeaderKey, HeaderValue)...) {
+        self.init(dictionaryElements: elements)
     }
 }
 

@@ -7,9 +7,9 @@
 fileprivate let contentLengthHeader = [UInt8]("Content-Length: ".utf8)
 fileprivate let eol = [UInt8]("\r\n".utf8)
 
-fileprivate let upgradeSignature: StaticString = "HTTP/1.1 101 Switching Protocols\r\n"
-fileprivate let okSignature: StaticString = "HTTP/1.1 200 OK\r\n"
-fileprivate let notFoundSignature: StaticString = "HTTP/1.1 404 NOT FOUND\r\n"
+fileprivate let upgradeSignature = [UInt8]("HTTP/1.1 101 Switching Protocols\r\n".utf8)
+fileprivate let okSignature = [UInt8]("HTTP/1.1 200 OK\r\n".utf8)
+fileprivate let notFoundSignature = [UInt8]("HTTP/1.1 404 NOT FOUND\r\n".utf8)
 
 /// The HTTP response status
 public enum Status {
@@ -19,8 +19,10 @@ public enum Status {
     
     case notFound
     
+    case custom(code: Int, message: String)
+    
     /// Returns a signature, for internal purposes only
-    fileprivate var signature: StaticString {
+    fileprivate var signature: [UInt8] {
         switch self {
         case .upgrade:
             return upgradeSignature
@@ -28,6 +30,8 @@ public enum Status {
             return okSignature
         case .notFound:
             return notFoundSignature
+        case .custom(let code, let message):
+            return code.description.utf8 + [0x20] + message.utf8
         }
     }
 }
@@ -70,9 +74,9 @@ public class Response {
         defer { pointer.deallocate(capacity: 65_536) }
         
         let signature = status.signature
-        var consumed = signature.utf8CodeUnitCount
+        var consumed = signature.count
         
-        memcpy(pointer, signature.utf8Start, consumed)
+        memcpy(pointer, signature, consumed)
         
         guard headers.buffer.count < 65_536 &- consumed &- eol.count else {
             fatalError()

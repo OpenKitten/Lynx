@@ -7,7 +7,7 @@ public struct Path : Hashable, CustomDebugStringConvertible {
     public var query: Query
     
     /// Serialized as UTF8 String bytes
-    public var bytes: [UInt8] {
+    internal var bytes: [UInt8] {
         guard let buffer = utf8String.makeBuffer() else {
             return []
         }

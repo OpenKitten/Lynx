@@ -24,13 +24,9 @@ internal final class Frame {
         case text = 0x01
         case binary = 0x02
         
-        // case nonControlExtension
-        
         case close = 0x08
         case ping = 0x09
         case pong = 0x0a
-        
-        // case controlExtension
     }
     
     let final: Bool

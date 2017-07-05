@@ -41,6 +41,8 @@ while true {
             <form action="login2" method="POST" enctype="multipart/form-data">
                 <input type="text" name="username" /><br />
                 <input type="password" name="password" /><br />
+                <input type="file" name="file" /><br /><br />
+                <textarea name="extra"></textarea><br />
                 <button>Kaas</button>
             </form>
             """
@@ -51,10 +53,14 @@ while true {
         }
         
         router.post("login") { req in
+            print(req.query)
             return ""
         }
         
         router.post("login2") { req in
+            print(req.multipart)
+            print(req.multipart?["file"]?.string)
+            print(req.multipart?["extra"]?.string)
             return ""
         }
         
@@ -64,6 +70,18 @@ while true {
         
         router.get("harrie", ":kaas", "bobs") { request in
             return (try request.extract(String.self, from: "kaas") ?? "noes")
+        }
+        
+        router.register(at: ["path", "to", "route"], method: .get) { request, client in
+            let response = Response(status: .ok, headers: [
+                "Content-Type": "text/html"
+            ], body: "<h1>AWESOME</h1>")
+            
+            do {
+                try response.send(to: client)
+            } catch {
+                client.close()
+            }
         }
         
         let server = try HTTPServer(port: 1234, handler: router.handle)

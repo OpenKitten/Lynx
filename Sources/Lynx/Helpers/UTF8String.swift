@@ -6,40 +6,36 @@
 
 /// Keeps track of a set of data, related to a UTF8 String, using COW
 internal class UTF8StringBuffer {
-    internal var bytes: UnsafeMutableBufferPointer<UInt8> {
-        didSet {
-            hashValue = 0
-            
-            guard bytes.count > 0 else {
-                return
-            }
-            
-            for i in 0..<bytes.count {
-                hashValue = 31 &* hashValue &+ numericCast(bytes[i])
-            }
-        }
-    }
+    internal let bytes: UnsafeMutablePointer<UInt8>?
     
-    internal private(set) var hashValue = 0
+    internal let count: Int
+    
+    internal let hashValue: Int
     
     init() {
-        self.bytes = UnsafeMutableBufferPointer<UInt8>(start: nil, count: 0)
+        self.bytes = nil
+        self.count = 0
+        self.hashValue = 0
     }
     
     deinit {
-        self.bytes.baseAddress?.deallocate(capacity: self.bytes.count)
+        self.bytes?.deallocate(capacity: self.count)
     }
     
     init(_ bytes: [UInt8]) {
         let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: bytes.count)
-        memcpy(pointer, bytes, bytes.count)
-        self.bytes = UnsafeMutableBufferPointer(start: pointer, count: bytes.count)
+        self.count = bytes.count
+        memcpy(pointer, bytes, count)
+        self.bytes = pointer
+        var hashValue = 0
         
         if bytes.count > 0 {
             for i in 0..<bytes.count {
                 hashValue = 31 &* hashValue &+ numericCast(bytes[i])
             }
         }
+        
+        self.hashValue = hashValue
     }
 }
 
@@ -49,11 +45,15 @@ internal struct UTF8String : Hashable {
     }
     
     var firstByte: UInt8? {
-        return buffer.bytes.first
+        guard buffer.count > 0 else {
+            return nil
+        }
+        
+        return buffer.bytes?[0]
     }
     
     var byteCount: Int {
-        return buffer.bytes.count
+        return buffer.count
     }
     
     static func hashValue(of buffer: UnsafeBufferPointer<UInt8>) -> Int {
@@ -71,11 +71,11 @@ internal struct UTF8String : Hashable {
     }
     
     func index(of byte: UInt8, offset: Int) -> Int? {
-        guard let pointer = self.buffer.bytes.baseAddress?.advanced(by: offset) else {
+        guard let pointer = self.buffer.bytes?.advanced(by: offset) else {
             return nil
         }
         
-        guard let index = UnsafeBufferPointer(start: pointer, count: self.buffer.bytes.count &- offset).index(of: byte) else {
+        guard let index = UnsafeBufferPointer(start: pointer, count: self.buffer.count &- offset).index(of: byte) else {
             return nil
         }
         
@@ -83,19 +83,22 @@ internal struct UTF8String : Hashable {
     }
     
     func byte(at index: Int) -> UInt8? {
-        return self.buffer.bytes.baseAddress?.advanced(by: index).pointee
+        return self.buffer.bytes?.advanced(by: index).pointee
     }
     
     func slice(by byte: UInt8) -> [UnsafeBufferPointer<UInt8>] {
-        guard let address = buffer.bytes.baseAddress else {
+        guard let address = buffer.bytes else {
             return []
         }
         
         var pointer = UnsafePointer(address)
         var slices = [UnsafeBufferPointer<UInt8>]()
         
+        // How often will you exceed this?
+        slices.reserveCapacity(6)
+        
         var i = 0
-        var length = buffer.bytes.count
+        var length = buffer.count
         
         while length > 0 {
             pointer.peek(until: byte, length: &length, offset: &i)
@@ -106,9 +109,9 @@ internal struct UTF8String : Hashable {
     }
     
     func makeBuffer(from base: Int = 0, to end: Int? = nil) -> UnsafeBufferPointer<UInt8>? {
-        let end = end ?? buffer.bytes.count
+        let end = end ?? buffer.count
         
-        guard let address = buffer.bytes.baseAddress, base > -1, end <= buffer.bytes.count else {
+        guard let address = buffer.bytes, base > -1, end <= buffer.count else {
             return nil
         }
         
@@ -124,24 +127,26 @@ internal struct UTF8String : Hashable {
     }
     
     static func ==(lhs: UTF8String, rhs: UTF8String) -> Bool {
-        guard lhs.buffer.bytes.count == rhs.buffer.bytes.count else {
+        // Same length
+        guard lhs.buffer.count == rhs.buffer.count else {
             return false
         }
         
-        guard let lhsBase = lhs.buffer.bytes.baseAddress, let rhsBase = rhs.buffer.bytes.baseAddress else {
-            return lhs.buffer.bytes.baseAddress == rhs.buffer.bytes.baseAddress
+        // if they're both nil
+        guard let lhsBase = lhs.buffer.bytes, let rhsBase = rhs.buffer.bytes else {
+            return lhs.buffer.bytes == rhs.buffer.bytes
         }
         
-        return memcmp(lhsBase, rhsBase, lhs.buffer.bytes.count) == 0
+        return memcmp(lhsBase, rhsBase, lhs.buffer.count) == 0
     }
     
     static func ==(lhs: UTF8String, rhs: UnsafeBufferPointer<UInt8>) -> Bool {
-        guard lhs.buffer.bytes.count == rhs.count else {
+        guard lhs.buffer.count == rhs.count else {
             return false
         }
         
-        guard let lhsBase = lhs.buffer.bytes.baseAddress, let base = rhs.baseAddress else {
-            return lhs.buffer.bytes.baseAddress == nil && rhs.baseAddress == nil
+        guard let lhsBase = lhs.buffer.bytes, let base = rhs.baseAddress else {
+            return lhs.buffer.bytes == nil && rhs.baseAddress == nil
         }
         
         return memcmp(lhsBase, base, rhs.count) == 0

@@ -101,20 +101,23 @@ public final class MultipartForm {
         var length = buffer.count
         var parts = [Part]()
         
+        // Iterate over all key-value pairs
         while boundary.count &+ 4 < length {
-            // '--'
+            // '--' before each boundary
             guard base[0] == 0x2d, base[1] == 0x2d else {
                 return nil
             }
             
             base = base.advanced(by: 2)
             
+            // Double-check the boundary
             guard memcmp(base, boundary, boundary.count) == 0 else {
                 return nil
             }
             
+            // The boundary must be succeeded by `\r\n` for additional elements
             guard base[boundary.count] == 0x0d, base[boundary.count &+ 1] == 0x0a else {
-                // '--'
+                // '--' can be there when you reach end of the multipart form
                 guard base[boundary.count] == 0x2d, base[boundary.count &+ 1] == 0x2d else {
                     return nil
                 }
@@ -124,9 +127,11 @@ public final class MultipartForm {
                 return
             }
             
+            // scan for the end of the key
             length = length &- boundary.count
             base = base.advanced(by: boundary.count &+ 2)
             
+            // Check for "Content-Disposition"
             guard contentDispositionMark.count < length, memcmp(base, contentDispositionMark, contentDispositionMark.count) == 0 else {
                 return nil
             }
@@ -134,7 +139,7 @@ public final class MultipartForm {
             length = length &- contentDispositionMark.count
             base = base.advanced(by: contentDispositionMark.count)
             
-            // ' '
+            // ' ', the space inbetween a key and value in the header
             base.peek(until: 0x20, length: &length, offset: &currentPosition)
             
             guard currentPosition > 0 else {
@@ -143,44 +148,57 @@ public final class MultipartForm {
             
             let contentDisposition = base.buffer(until: &currentPosition)
             
+            // If the value is a normal FormData
             if formData.count &+ 1 < length, contentDisposition.count == formData.count, memcmp(contentDisposition.baseAddress, formData, formData.count) == 0 {
-                // ' '
+                // ' ' Scan past the header, for the name
                 guard contentDisposition.baseAddress?[contentDisposition.count] == 0x20 else {
                     return nil
                 }
                 
-                // '"'
+                // '"' scan for the start of the name
                 base.peek(until: 0x22, length: &length, offset: &currentPosition)
                 
                 guard currentPosition > 1 else {
                     return nil
                 }
                 
-                // '"'
+                // '"' Scan for the end of the name
                 base.peek(until: 0x22, length: &length, offset: &currentPosition)
                 
+                // Take the name of the field
                 let nameBuffer = base.buffer(until: &currentPosition)
                 
-                // \r\n\r\n
+                // `\r\n\r\n` after the name, to start the value
                 guard 6 < length, base[0] == 0x0d, base[1] == 0x0a, base[2] == 0x0d, base[3] == 0x0a else {
                     return nil
                 }
                 
                 length = length &- 4
                 base = base.advanced(by: 4)
+                var total = 0
                 
-                base.peek(until: 0x0d, length: &length, offset: &currentPosition)
+                repeat {
+                    // Scan until the end of the value
+                    base.peek(until: 0x0d, length: &length, offset: &currentPosition)
+                    total = total &+ currentPosition
+                    
+                    // `\r\n` at the end of a value
+                    // start of next boundary, after `\r\n`
+                } while length >= 4 &+ boundary.count && !(
+                      base[-1] == 0x0d && base[0] == 0x0a && base[1] == 0x2d &&
+                        base[2] == 0x2d && memcmp(base.advanced(by: 3), boundary, boundary.count) == 0)
                 
-                // \r\n
-                guard length > 1, base[0] == 0x0a, base[-1] == 0x0d else {
+                guard length > boundary.count &+ 4 else {
                     return nil
                 }
                 
-                let dataBuffer = base.buffer(until: &currentPosition)
+                // Point to the stored data
+                let dataBuffer = base.buffer(until: &total)
                 
                 // skip \n
                 base = base.advanced(by: 1)
                 
+                // Append the part
                 parts.append(Part(name: nameBuffer, type: .value, data: dataBuffer))
             } else {
                 // unsupported

@@ -20,7 +20,7 @@ open class TrieRouter {
     
     /// Handles a request from the HTTP server
     public func handle(_ request: Request, for client: Client) {
-        guard let node = findNode(at: request.url.components, for: request) else {
+        guard let node = findNode(at: request.url, for: request) else {
             self.defaultHandler(request, client)
             return
         }
@@ -34,11 +34,12 @@ open class TrieRouter {
     }
     
     /// Finds a matching route
-    fileprivate func findNode(at path: [UnsafeBufferPointer<UInt8>], for request: Request) -> TrieRouterNode? {
+    fileprivate func findNode(at path: Path, for request: Request) -> TrieRouterNode? {
         var node = self.node
         var currentIndex = 0
+        let components = path.components
         
-        recursiveSearch: for component in path {
+        recursiveSearch: for component in components {
             defer { currentIndex = currentIndex &+ 1 }
             
             guard component.count > 0 else {
@@ -52,8 +53,8 @@ open class TrieRouter {
                 if subNode.component == component || isToken {
                     if isToken,
                         let token = subNode.component.makeString(from: 1),
-                        currentIndex < path.count,
-                        let value = String(bytes: path[currentIndex], encoding: .utf8) {
+                        currentIndex < components.count,
+                        let value = String(bytes: components[currentIndex], encoding: .utf8) {
                         request.url.tokens[token] = value
                     }
                     

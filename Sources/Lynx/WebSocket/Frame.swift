@@ -95,7 +95,7 @@ internal final class Frame {
     }
 }
 
-enum WebSocketError : Error {
+public enum WebSocketError : Error {
     case invalidFrame
     case couldNotConnect
 }

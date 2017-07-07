@@ -5,7 +5,7 @@ public final class WebSocket {
     let remote: Client
     let onClose: (()->())
     
-    internal init?(from request: Request, to client: Client, onClose: @escaping (()->())) throws {
+    public init?(from request: Request, to client: Client, onClose: @escaping (()->())) throws {
         guard
             request.method == .get,
             let key = request.headers["Sec-WebSocket-Key"],

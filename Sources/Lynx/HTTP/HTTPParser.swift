@@ -152,7 +152,6 @@ internal final class RequestPlaceholder {
             }
         }
         
-        // TODO: malloc and no copies
         func parseHeaders() {
             let start = pointer
             
@@ -161,7 +160,7 @@ internal final class RequestPlaceholder {
                 pointer.peek(until: 0x0a, length: &length, offset: &currentPosition)
                 
                 guard currentPosition > 0 else {
-                    correct = false
+                    self.headers = Headers()
                     return
                 }
                 

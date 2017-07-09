@@ -2,17 +2,25 @@ import Foundation
 import CryptoKitten
 
 public final class WebSocket {
-    let remote: Client
-    let onClose: (()->())
+    public typealias TextHandler = ((String) throws -> ())
+    public typealias BinaryHandler = ((UnsafePointer<UInt8>, Int) throws -> ())
+    public typealias CloseHandler = ((WebSocket) -> ())
     
-    public init?(from request: Request, to client: Client, onClose: @escaping (()->())) throws {
+    let remote: Client
+    
+    var onClose: CloseHandler?
+    
+    var textHandler: TextHandler?
+    var binaryHandler: BinaryHandler?
+    
+    public init(from request: Request, to client: Client) throws {
         guard
             request.method == .get,
             let key = request.headers["Sec-WebSocket-Key"],
             let version = Int(request.headers["Sec-WebSocket-Version"]),
             request.headers["Upgrade"] == "websocket",
             request.headers["Connection"] == "Upgrade" else {
-                return nil
+                throw WebSocketError.invalidUpgrade
         }
         
         let headers: Headers
@@ -34,7 +42,6 @@ public final class WebSocket {
             ]
         }
         
-        self.onClose = onClose
         self.remote = client
         
         client.onRead(self.receive)
@@ -45,7 +52,7 @@ public final class WebSocket {
     public func close() {
         remote.close()
         
-        onClose()
+        onClose?(self)
     }
     
     fileprivate let message = UnsafeMutablePointer<UInt8>.allocate(capacity: Int(UInt16.max))
@@ -138,12 +145,6 @@ public final class WebSocket {
     }
     
     // MARK - Receiving
-    
-    public typealias TextHandler = ((String) throws -> ())
-    public typealias BinaryHandler = ((UnsafePointer<UInt8>, Int) throws -> ())
-    
-    var textHandler: TextHandler?
-    var binaryHandler: BinaryHandler?
     
     public func onText(_ handler: @escaping TextHandler) {
         self.textHandler = handler

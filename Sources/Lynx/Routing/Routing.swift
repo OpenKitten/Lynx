@@ -1,3 +1,8 @@
+public protocol Router {
+    func handle(_ request: Request, for client: Client)
+    func register(at path: [String], method: Method, handler: @escaping RequestHandler)
+}
+
 /// A basic router
 open class TrieRouter {
     /// This will be called if no route is found
@@ -51,19 +56,21 @@ open class TrieRouter {
                 
                 // colon is acceptable for tokenized strings
                 if subNode.component == component || isToken {
-                    if isToken,
+                    if !isToken {
+                        node = subNode
+                        continue recursiveSearch
+                    } else if isToken,
                         let token = subNode.component.makeString(from: 1),
                         currentIndex < components.count,
                         let value = String(bytes: components[currentIndex], encoding: .utf8) {
                         request.url.tokens[token] = value
+                        node = subNode
+                        continue recursiveSearch
                     }
-                    
-                    node = subNode
-                    continue recursiveSearch
                 }
             }
             
-            break recursiveSearch
+            return nil
         }
         
         return node

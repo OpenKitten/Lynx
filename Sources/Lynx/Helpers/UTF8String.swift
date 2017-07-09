@@ -102,7 +102,18 @@ internal struct UTF8String : Hashable {
         
         while length > 0 {
             pointer.peek(until: byte, length: &length, offset: &i)
-            slices.append(pointer.buffer(until: &i))
+            
+            if pointer[-1] == byte {
+                guard i > 1 else {
+                    continue
+                }
+                
+                slices.append(pointer.buffer(until: &i))
+            } else {
+                i = i &+ 1
+                pointer = pointer.advanced(by: 1)
+                slices.append(pointer.buffer(until: &i))
+            }
         }
         
         return slices

@@ -215,6 +215,10 @@ public final class MultipartForm {
 
 extension UnsafePointer where Pointee == UInt8 {
     fileprivate func buffer(until length: inout Int) -> UnsafeBufferPointer<UInt8> {
+        guard length > 0 else {
+            return UnsafeBufferPointer<UInt8>(start: nil, count: 0)
+        }
+        
         // - 1 for the skipped byte
         return UnsafeBufferPointer(start: self.advanced(by: -length), count: length &- 1)
     }

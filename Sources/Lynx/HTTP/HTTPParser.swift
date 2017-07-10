@@ -245,6 +245,10 @@ extension UnsafePointer where Pointee == UInt8 {
     }
     
     fileprivate func buffer(until length: inout Int) -> UnsafeBufferPointer<UInt8> {
+        guard length > 0 else {
+            return UnsafeBufferPointer<UInt8>(start: nil, count: 0)
+        }
+        
         return UnsafeBufferPointer(start: self.advanced(by: -length), count: length)
     }
     

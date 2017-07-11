@@ -78,7 +78,14 @@ open class TrieRouter {
     
     /// A public API for registering a new route
     public func register(at path: [String], method: Method, handler: @escaping RequestHandler) {
-        let path = path.flatMap { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) }.flatMap { UTF8String(bytes: [UInt8]($0.utf8)) }
+        let path = path.flatMap { component in
+            if component.utf8.first == tokenByte {
+                return component
+            } else {
+                return component.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)
+            }
+        }.flatMap { UTF8String(bytes: [UInt8]($0.utf8)) }
+            
         self.register(at: path, method: method, handler: handler)
     }
     

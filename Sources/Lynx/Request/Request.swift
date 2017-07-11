@@ -31,7 +31,7 @@ public enum Method : Equatable, Hashable {
 }
 
 /// Class so you don't copy the data at all and treat them like a state machine
-public final class Request {
+open class Request {
     public let method: Method
     public var url: Path
     public let headers: Headers

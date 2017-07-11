@@ -33,8 +33,14 @@ final class TCPServer {
         // IPv4 or IPv6
         addressCriteria.ai_family = Int32(AF_INET)
         addressCriteria.ai_flags = AI_PASSIVE
-        addressCriteria.ai_socktype = SOCK_STREAM
-        addressCriteria.ai_protocol = IPPROTO_TCP
+        
+        #if os(Linux)
+            addressCriteria.ai_socktype = Int32(SOCK_STREAM.rawValue)
+            addressCriteria.ai_protocol = Int32(IPPROTO_TCP)
+        #else
+            addressCriteria.ai_socktype = SOCK_STREAM
+            addressCriteria.ai_protocol = IPPROTO_TCP
+        #endif
         
         var addrInfo: UnsafeMutablePointer<addrinfo>?
         

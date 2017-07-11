@@ -53,7 +53,11 @@ final class ClientHolder {
         self.readSource = DispatchSource.makeReadSource(fileDescriptor: self.descriptor, queue: Client.queue)
         
         self.readSource.setCancelHandler {
-            Darwin.close(descriptor)
+            #if os(Linux)
+                Glibc.close(descriptor)
+            #else
+                Darwin.close(descriptor)
+            #endif
         }
     }
     
@@ -73,7 +77,11 @@ final class ClientHolder {
     
     func listen() {
         self.readSource.setEventHandler(qos: .userInteractive) {
-            let read = Darwin.recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
+            #if os(Linux)
+                let read = Glibc.recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
+            #else
+                let read = Darwin.recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
+            #endif
             
             guard read > -1 else {
                 self.onError(.cannotRead)
@@ -142,7 +150,12 @@ public struct Client {
     
     /// Sends new data to the client
     public func send(data pointer: UnsafePointer<UInt8>, withLengthOf length: Int) throws {
-        let sent = Darwin.send(self.holder.descriptor, pointer, length, 0)
+        #if os(Linux)
+            let sent = Glibc.send(self.holder.descriptor, pointer, length, 0)
+        #else
+            let sent = Darwin.send(self.holder.descriptor, pointer, length, 0)
+        #endif
+        
         guard sent == length else {
             throw TCPError.sendFailure
         }

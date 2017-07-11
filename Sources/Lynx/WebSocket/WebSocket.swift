@@ -184,8 +184,12 @@ public final class WebSocket {
                     try self.binaryHandler?(pointer, message.data.count)
                 }
             case .ping:
-            // TODO: send pong
-                print("pong")
+                guard message.data.count < 126 else {
+                    remote.close()
+                    return
+                }
+                
+                try remote.send(data: [0b10001010, UInt8(message.data.count)] + Array(message.data))
             case .close:
                 close()
             default:

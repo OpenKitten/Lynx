@@ -78,7 +78,8 @@ open class TrieRouter {
     
     /// A public API for registering a new route
     public func register(at path: [String], method: Method, handler: @escaping RequestHandler) {
-        self.register(at: path.flatMap { UTF8String(bytes: [UInt8]($0.utf8)) }, method: method, handler: handler)
+        let path = path.flatMap { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) }.flatMap { UTF8String(bytes: [UInt8]($0.utf8)) }
+        self.register(at: path, method: method, handler: handler)
     }
     
     /// An internal API to register a new route with slightly more performance

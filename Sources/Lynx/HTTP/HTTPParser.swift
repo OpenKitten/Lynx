@@ -133,7 +133,8 @@ internal final class RequestPlaceholder {
                 return
             }
             
-            self.method = .unknown(string)
+            // Can't be precalculated
+            self.method = .other(string)
         }
         
         func parsePath() {

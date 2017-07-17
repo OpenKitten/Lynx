@@ -32,7 +32,8 @@ public struct Query : CustomDebugStringConvertible {
     
     /// Efficiently reads values from this query
     public subscript(key: String) -> String? {
-        let key = UTF8String(bytes: [UInt8](key.utf8))
+        let stringKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
+        let key = UTF8String(bytes: [UInt8](stringKey.utf8))
         
         if let position = storage.cache[key.hashValue] {
             // \r
@@ -41,9 +42,9 @@ public struct Query : CustomDebugStringConvertible {
             }
             
             if storage.utf8String.byte(at: nextIndex) == 0x26 {
-                return storage.utf8String.makeString(from: position, to: nextIndex &- 1)
+                return storage.utf8String.makeString(from: position, to: nextIndex &- 1)?.removingPercentEncoding
             } else {
-                return storage.utf8String.makeString(from: position, to: nextIndex)
+                return storage.utf8String.makeString(from: position, to: nextIndex)?.removingPercentEncoding
             }
         }
         
@@ -65,17 +66,9 @@ public struct Query : CustomDebugStringConvertible {
                         return ""
                     }
                     
-                    // if ends with `&`
-                    if slice.baseAddress?.advanced(by: slice.count).pointee == 0x26 {
-                        // don't include the `&`
-                        let value = UnsafeBufferPointer(start: slice.baseAddress?.advanced(by: index &+ 1), count: slice.count &- index &- 1)
-                        
-                        return String(bytes: value, encoding: .utf8)
-                    } else {
-                        let value = UnsafeBufferPointer(start: slice.baseAddress?.advanced(by: index &+ 1), count: slice.count &- index)
-                        
-                        return String(bytes: value, encoding: .utf8)
-                    }
+                    let value = UnsafeBufferPointer(start: slice.baseAddress?.advanced(by: index &+ 1), count: slice.count &- index &- 1)
+                    
+                    return String(bytes: value, encoding: .utf8)?.removingPercentEncoding
                 }
             } else if key == slice {
                 return ""
@@ -88,7 +81,7 @@ public struct Query : CustomDebugStringConvertible {
 
 extension Request {
     /// Extracts a query from the request
-    public var query: Query {
+    public var form: Query {
         if let body = self.body {
             return Query(buffer: UnsafeBufferPointer(start: body.baseAddress, count: body.count))
         }

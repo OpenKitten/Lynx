@@ -16,6 +16,10 @@ final class QueryStorage {
 public struct Query : CustomDebugStringConvertible {
     let storage: QueryStorage
     
+    public var string: String {
+        return storage.utf8String.makeString() ?? ""
+    }
+    
     public var debugDescription: String {
         return self.storage.utf8String.makeString() ?? ""
     }
@@ -83,7 +87,7 @@ extension Request {
     /// Extracts a query from the request
     public var form: Query {
         if let body = self.body {
-            return Query(buffer: UnsafeBufferPointer(start: body.baseAddress, count: body.count))
+            return Query(buffer: UnsafeBufferPointer(start: body.buffer.baseAddress, count: body.buffer.count))
         }
         
         return Query()

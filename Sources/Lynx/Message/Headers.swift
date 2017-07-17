@@ -2,7 +2,25 @@
 public typealias HeaderValue = HeaderKey
 
 /// An HTTP header key
-public struct HeaderKey : Hashable, CustomDebugStringConvertible {
+public struct HeaderKey : Hashable, CustomDebugStringConvertible, CodingKey, Codable {
+    /// Returns the string in this key
+    public var stringValue: String {
+        return utf8String.makeString() ?? ""
+    }
+    
+    public var intValue: Int?
+    
+    public init(from decoder: Decoder) throws {
+        let string = try decoder.singleValueContainer().decode(String.self)
+        
+        self.init(string)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.stringValue)
+    }
+    
     internal var utf8String: UTF8String
     
     /// Accesses the internal byte buffer
@@ -12,11 +30,6 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
         }
         
         return Array(buffer)
-    }
-    
-    /// Returns the string in this key
-    public var string: String {
-        return utf8String.makeString() ?? ""
     }
     
     /// Hashable
@@ -34,6 +47,14 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
         self.utf8String = UTF8String(bytes: bytes)
     }
     
+    public init?(intValue: Int) {
+        return nil
+    }
+    
+    public init?(stringValue: String) {
+        self.init(stringValue)
+    }
+    
     public init(_ string: String) {
         self.init(bytes: [UInt8](string.utf8))
     }
@@ -45,7 +66,7 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible {
     
     /// Debugging helper
     public var debugDescription: String {
-        return self.string
+        return self.stringValue
     }
     
     public static func +(lhs: HeaderKey, rhs: HeaderKey) -> HeaderKey {
@@ -59,13 +80,13 @@ extension String {
             return nil
         }
         
-        self = value.string
+        self = value.stringValue
     }
 }
 
 extension Int {
     public init?(_ value: HeaderValue?) {
-        guard let value = value, let int = Int(value.string) else {
+        guard let value = value, let int = Int(value.stringValue) else {
             return nil
         }
         
@@ -110,7 +131,25 @@ fileprivate final class HeadersStorage {
 }
 
 /// HTTP headers
-public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvertible, Sequence {
+public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvertible, Sequence, Codable {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: HeaderKey.self)
+        
+        let pairs = try container.allKeys.map { key in
+            return (key, try container.decode(HeaderValue.self, forKey: key))
+        }
+        
+        self.init(dictionaryElements: pairs)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: HeaderKey.self)
+        
+        for (key, value) in self {
+            try container.encode(value, forKey: key)
+        }
+    }
+    
     /// The internal storage
     private let storage: HeadersStorage
     

@@ -93,12 +93,12 @@ public final class MultipartForm {
             return nil
         }
         
-        guard var base = UnsafePointer(buffer.baseAddress) else {
+        guard var base = UnsafePointer(buffer.buffer.baseAddress) else {
             return nil
         }
         
         var currentPosition = 0
-        var length = buffer.count
+        var length = buffer.buffer.count
         var parts = [Part]()
         
         // Iterate over all key-value pairs

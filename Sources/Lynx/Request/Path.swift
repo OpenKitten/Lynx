@@ -1,5 +1,17 @@
 /// An HTTP request path
-public struct Path : Hashable, CustomDebugStringConvertible {
+public struct Path : Hashable, CustomDebugStringConvertible, Codable {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let string = try container.decode(String.self)
+        
+        self.init(url: string)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.string)
+    }
+    
     /// The underlying string
     private var utf8String: UTF8String
     
@@ -28,7 +40,10 @@ public struct Path : Hashable, CustomDebugStringConvertible {
     
     /// This path represented as a String
     public var string: String {
-        return String(bytes: bytes, encoding: .utf8) ?? ""
+        let path = String(bytes: bytes, encoding: .utf8) ?? ""
+        let query = self.query.string
+        
+        return path + "?" + query
     }
     
     /// Makes this path hashable for use in Dictionaries as a key
@@ -49,6 +64,23 @@ public struct Path : Hashable, CustomDebugStringConvertible {
             self.query = Query(buffer: query)
         } else {
             self.query = Query()
+        }
+    }
+    
+    public init(url: String) {
+        let buffer = [UInt8](url.utf8)
+        
+        // ?
+        if let index = buffer.index(of: 0x3f), index < url.characters.count {
+            let path = UnsafeBufferPointer(start: buffer, count: index)
+            
+            let query = buffer.withUnsafeBufferPointer { buffer in
+                return UnsafeBufferPointer(start: buffer.baseAddress?.advanced(by: index + 1), count: buffer.count - index - 1)
+            }
+            
+            self.init(path: path, query: query)
+        } else {
+            self.init(path: UnsafeBufferPointer(start: buffer, count: buffer.count), query: nil)
         }
     }
     

@@ -203,7 +203,7 @@ internal final class RequestPlaceholder {
         if proceedable, headers == nil {
             parseHeaders()
             
-            if let cl = headers?[contentLengthKey], let contentLength = Int(cl.string) {
+            if let cl = headers?[contentLengthKey], let contentLength = Int(cl.stringValue) {
                 self.contentLength = contentLength
                 self.body = UnsafeMutablePointer<UInt8>.allocate(capacity: self.contentLength)
             }

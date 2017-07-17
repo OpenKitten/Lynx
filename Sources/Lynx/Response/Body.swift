@@ -1,7 +1,27 @@
+import Foundation
+
 /// A response's body
 ///
 /// Crafted from a mutable buffer pointer that can be deallocated
-public class Body {
+public class Body : Codable {
+    public required init(from decoder: Decoder) throws {
+        let data = try decoder.singleValueContainer().decode(Data.self)
+        
+        let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: data.count)
+        
+        _ = data.withUnsafeBytes { dataBuffer in
+            memcpy(pointer, dataBuffer, data.count)
+        }
+        
+        self.buffer = UnsafeMutableBufferPointer(start: pointer, count: data.count)
+        self.deallocate = true
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var encoder = encoder.singleValueContainer()
+        try encoder.encode(Data(buffer))
+    }
+    
     /// The buffer with data to be returned to the client
     public let buffer: UnsafeMutableBufferPointer<UInt8>
     

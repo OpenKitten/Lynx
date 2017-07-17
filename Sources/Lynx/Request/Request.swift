@@ -1,7 +1,37 @@
 /// An HTTP Request method
 ///
 /// Used to provide information about the kind of action being requested
-public enum Method : Equatable, Hashable {
+public enum Method : Equatable, Hashable, Codable {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        let string = try container.decode(String.self).uppercased()
+        
+        switch string {
+        case "GET": self = .get
+        case "PUT": self = .put
+        case "POST": self = .post
+        case "PATCH": self = .patch
+        case "DELETE": self = .delete
+        case "OPTIONS": self = .options
+        default: self = .other(string)
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        
+        switch self {
+        case .get: try container.encode("GET")
+        case .put: try container.encode("PUT")
+        case .post: try container.encode("POST")
+        case .delete: try container.encode("DELETE")
+        case .patch: try container.encode("PATCH")
+        case .options: try container.encode("OPTIONS")
+        case .other(let method): try container.encode(method)
+        }
+    }
+    
     /// A GET request is used to retrieve information, such as a web-page or profile picture
     ///
     /// GET Requests will not provide a body
@@ -48,7 +78,6 @@ public enum Method : Equatable, Hashable {
         case .patch: return 2004
         case .options: return 2005
         case .other(let s):  return 2006 &+ s.hashValue
-            
         }
     }
     
@@ -67,23 +96,22 @@ public enum Method : Equatable, Hashable {
 }
 
 /// Class so you don't copy the data at all and treat them like a state machine
-open class Request {
+open class Request : Encodable {
     public let method: Method
     public var url: Path
     public let headers: Headers
-    public let body: UnsafeMutableBufferPointer<UInt8>?
+    public let body: Body?
     
     /// Creates a new request
-    init(with method: Method, url: Path, headers: Headers, body: UnsafeMutableBufferPointer<UInt8>?) {
+    init(with method: Method, url: Path, headers: Headers, body: UnsafeMutableBufferPointer<UInt8>?, deallocating: Bool = false) {
         self.method = method
         self.url = url
         self.headers = headers
-        self.body = body
-    }
-    
-    deinit {
+        
         if let body = body {
-            body.baseAddress?.deallocate(capacity: body.count)
+            self.body = Body(pointingTo: body, deallocating: deallocating)
+        } else {
+            self.body = nil
         }
     }
 }

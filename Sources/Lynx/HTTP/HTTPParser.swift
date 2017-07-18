@@ -234,7 +234,7 @@ internal final class RequestPlaceholder {
             return nil
         }
         
-        return Request(with: method, url: path, headers: headers, body: UnsafeMutableBufferPointer(start: body, count: contentLength))
+        return Request(method: method, url: path, headers: headers, body: UnsafeMutableBufferPointer(start: body, count: contentLength))
     }
 }
 

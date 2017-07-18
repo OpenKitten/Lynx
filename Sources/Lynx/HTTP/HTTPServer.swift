@@ -11,7 +11,7 @@ import Foundation
 /// A handler, receives a request and it's client
 ///
 /// Should handle all parts of the further response itself, including closing the socket when appropriate
-public typealias RequestHandler = ((Request, Client) -> ())
+public typealias RequestHandler = ((Request, HTTPRemote) -> ())
 
 /// An HTTP server, takes care of most TCP features and HTTP parsing under the hood
 public final class HTTPServer {

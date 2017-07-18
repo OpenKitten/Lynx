@@ -1,6 +1,26 @@
 public protocol Router {
-    func handle(_ request: Request, for client: Client)
+    func handle(_ request: Request, for remote: HTTPRemote)
     func register(at path: [String], method: Method, handler: @escaping RequestHandler)
+}
+
+public struct TestClient : HTTPRemote {
+    public func error(_ error: Error) {
+        fail(error)
+    }
+    
+    public func send(_ response: Response) throws {
+        try handler(response)
+    }
+    
+    public typealias ResponseHandler = ((Response) throws -> ())
+    
+    let handler: ResponseHandler
+    let fail: ((Error)->())
+    
+    init(_ handler: @escaping ResponseHandler, or fail: @escaping ((Error)->())) {
+        self.handler = handler
+        self.fail = fail
+    }
 }
 
 /// A basic router
@@ -24,18 +44,18 @@ open class TrieRouter {
     }
     
     /// Handles a request from the HTTP server
-    public func handle(_ request: Request, for client: Client) {
+    public func handle(_ request: Request, for remote: HTTPRemote) {
         guard let node = findNode(at: request.url, for: request) else {
-            self.defaultHandler(request, client)
+            self.defaultHandler(request, remote)
             return
         }
         
         guard let handler = node.leafs[request.method] else {
-            self.defaultHandler(request, client)
+            self.defaultHandler(request, remote)
             return
         }
         
-        handler(request, client)
+        handler(request, remote)
     }
     
     /// Finds a matching route

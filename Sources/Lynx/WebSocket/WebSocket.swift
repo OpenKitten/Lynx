@@ -46,7 +46,7 @@ public final class WebSocket {
         
         client.onRead(self.receive)
         
-        try Response(status: .upgrade, headers: headers).send(to: client)
+        try client.send(Response(status: .upgrade, headers: headers))
     }
     
     public func close() {

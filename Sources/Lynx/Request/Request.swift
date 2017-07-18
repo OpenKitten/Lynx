@@ -103,7 +103,7 @@ open class Request : Encodable {
     public let body: Body?
     
     /// Creates a new request
-    init(with method: Method, url: Path, headers: Headers, body: UnsafeMutableBufferPointer<UInt8>?, deallocating: Bool = false) {
+    public init(method: Method, url: Path, headers: Headers, body: UnsafeMutableBufferPointer<UInt8>?, deallocating: Bool = false) {
         self.method = method
         self.url = url
         self.headers = headers

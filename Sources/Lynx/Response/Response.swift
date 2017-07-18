@@ -65,27 +65,35 @@ public class Response {
         self.headers = headers
         self.body = body
     }
+}
+
+public protocol HTTPRemote {
+    func send(_ response: Response) throws
+    func error(_ error: Error)
+}
+
+extension Client : HTTPRemote {
+    public func error(_ error: Error) {
+        self.close()
+    }
     
-    /// Sends this response to a client
-    ///
-    /// Handles serialization, too
-    public func send(to client: Client) throws {
+    public func send(_ response: Response) throws {
         let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: 65_536)
         defer { pointer.deallocate(capacity: 65_536) }
         
-        let signature = status.signature
+        let signature = response.status.signature
         var consumed = signature.count
         
         memcpy(pointer, signature, consumed)
         
-        guard headers.buffer.count < 65_536 &- consumed &- eol.count else {
+        guard response.headers.buffer.count < 65_536 &- consumed &- eol.count else {
             fatalError()
         }
         
         // headers
-        memcpy(pointer.advanced(by: consumed), headers.buffer.baseAddress, headers.buffer.count)
+        memcpy(pointer.advanced(by: consumed), response.headers.buffer.baseAddress, response.headers.buffer.count)
         
-        consumed = consumed &+ headers.buffer.count
+        consumed = consumed &+ response.headers.buffer.count
         
         // length header
         
@@ -93,7 +101,7 @@ public class Response {
         
         consumed = consumed &+ contentLengthHeader.count
         
-        let body = try self.body?.makeBody()
+        let body = try response.body?.makeBody()
         
         let bodyLengthWithEOL = [UInt8]((body?.buffer.count ?? 0).description.utf8) + eol
         
@@ -110,12 +118,12 @@ public class Response {
             memcpy(pointer.advanced(by: consumed), baseAddress, body.buffer.count)
             consumed = consumed &+ body.buffer.count
             
-            try client.send(data: pointer, withLengthOf: consumed)
+            try self.send(data: pointer, withLengthOf: consumed)
         } else {
-            try client.send(data: pointer, withLengthOf: consumed)
+            try self.send(data: pointer, withLengthOf: consumed)
             
             if let body = body, let baseAddress = body.buffer.baseAddress {
-                try client.send(data: baseAddress, withLengthOf: body.buffer.count)
+                try self.send(data: baseAddress, withLengthOf: body.buffer.count)
             }
         }
     }

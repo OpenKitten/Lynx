@@ -20,11 +20,11 @@ public class NotFound {
     }
     
     /// Responds with 404
-    public func handle(_ request: Request, for client: Client) {
+    public func handle(_ request: Request, for remote: HTTPRemote) {
         do {
-            try response.send(to: client)
+            try remote.send(response)
         } catch {
-            client.close()
+            remote.error(error)
         }
     }
 }

@@ -1,5 +1,5 @@
 /// An HTTP request path
-public struct Path : Hashable, CustomDebugStringConvertible, Codable {
+public struct Path : Hashable, CustomDebugStringConvertible, Codable, ExpressibleByStringLiteral {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let string = try container.decode(String.self)
@@ -82,6 +82,18 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable {
         } else {
             self.init(path: UnsafeBufferPointer(start: buffer, count: buffer.count), query: nil)
         }
+    }
+    
+    public init(stringLiteral value: String) {
+        self.init(url: value)
+    }
+    
+    public init(unicodeScalarLiteral value: String) {
+        self.init(url: value)
+    }
+    
+    public init(extendedGraphemeClusterLiteral value: String) {
+        self.init(url: value)
     }
     
     /// Useful for debugging

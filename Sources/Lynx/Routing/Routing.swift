@@ -17,7 +17,7 @@ public struct TestClient : HTTPRemote {
     let handler: ResponseHandler
     let fail: ((Error)->())
     
-    init(_ handler: @escaping ResponseHandler, or fail: @escaping ((Error)->())) {
+    public init(_ handler: @escaping ResponseHandler, or fail: @escaping ((Error)->())) {
         self.handler = handler
         self.fail = fail
     }

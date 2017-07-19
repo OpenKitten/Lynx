@@ -13,7 +13,7 @@ let package = Package(
             targets: ["Lynx"]),
     ],
     dependencies: [
-        .package(url: "http://github.com/OpenKitten/CryptoKitten.git", from: Version(0,1,0))
+        .package(url: "https://github.com/OpenKitten/CryptoKitten.git", from: Version(0,1,0))
         // Dependencies declare other packages that this package depends on.
     ],
     targets: [

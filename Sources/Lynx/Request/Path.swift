@@ -41,9 +41,13 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
     /// This path represented as a String
     public var string: String {
         let path = String(bytes: bytes, encoding: .utf8) ?? ""
-        let query = self.query.string
         
-        return path + "?" + query
+        if self.query.storage.utf8String.byteCount > 0 {
+            let query = self.query.string
+            return path + "?" + query
+        }
+        
+        return path
     }
     
     /// Makes this path hashable for use in Dictionaries as a key

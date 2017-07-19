@@ -18,18 +18,21 @@ public enum Method : Equatable, Hashable, Codable {
         }
     }
     
+    public var string: String {
+        switch self {
+        case .get: return "GET"
+        case .put: return "PUT"
+        case .post: return "POST"
+        case .delete: return "DELETE"
+        case .patch: return "PATCH"
+        case .options: return "OPTIONS"
+        case .other(let method): return method
+        }
+    }
+    
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        
-        switch self {
-        case .get: try container.encode("GET")
-        case .put: try container.encode("PUT")
-        case .post: try container.encode("POST")
-        case .delete: try container.encode("DELETE")
-        case .patch: try container.encode("PATCH")
-        case .options: try container.encode("OPTIONS")
-        case .other(let method): try container.encode(method)
-        }
+        try container.encode(self.string)
     }
     
     /// A GET request is used to retrieve information, such as a web-page or profile picture

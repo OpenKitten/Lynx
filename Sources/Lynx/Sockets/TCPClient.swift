@@ -28,8 +28,6 @@ public final class TCPClient : TCPSocket {
             guard errno == EINPROGRESS || errno == EISCONN else {
                 throw TCPError.unableToConnect
             }
-            
-            print(errno)
         }
         
         self.readSource.setCancelHandler {

@@ -102,8 +102,8 @@ public enum Method : Equatable, Hashable, Codable {
 open class Request : Encodable {
     public let method: Method
     public var url: Path
-    public let headers: Headers
-    public let body: Body?
+    public var headers: Headers
+    public var body: Body?
     
     /// Creates a new request
     public init(method: Method, url: Path, headers: Headers = [:], body: UnsafeMutableBufferPointer<UInt8>? = nil, deallocating: Bool = false) {

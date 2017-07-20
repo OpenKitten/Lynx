@@ -8,5 +8,8 @@ public enum TCPError : Error {
     
     /// Cannot read data, the socket is likely closed
     case cannotRead
+    
+    /// The TCP Client could not connect to the remote
+    case unableToConnect
 }
 

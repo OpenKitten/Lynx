@@ -161,7 +161,7 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         self.storage = HeadersStorage(serialized: serialized)
     }
     
-    var buffer: UnsafeBufferPointer<UInt8> {
+    public var buffer: UnsafeBufferPointer<UInt8> {
         return UnsafeBufferPointer(start: storage.serialized, count: storage.serialized.count)
     }
     
@@ -266,7 +266,7 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         }
     }
     
-    public private(set) subscript(key: HeaderKey) -> HeaderValue? {
+    public subscript(key: HeaderKey) -> HeaderValue? {
         get {
             if let position = storage.hashes.first(where: { $0.0 == key.hashValue })?.position {
                 let start = position &+ key.bytes.count &+ 2
@@ -289,11 +289,17 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         }
         // TODO: UPDATE CACHE
         set {
+            _ = self[key]
+            
             if let index = storage.hashes.index(where: { $0.0 == key.hashValue }) {
                 if let newValue = newValue {
                     let position = storage.hashes[index].position
                     
-                    let start = position &+ key.bytes.count
+                    let start = position &+ key.bytes.count &+ 2
+                    
+                    guard start + 2 < storage.serialized.count else {
+                        return
+                    }
                     
                     var final: Int?
                     
@@ -309,6 +315,15 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
                         storage.serialized.replaceSubrange(start..<final, with: newValue.bytes)
                     }
                 } else {
+                    let nextIndex = storage.hashes.index(after: index)
+                    
+                    guard storage.hashes.count > nextIndex else {
+                        storage.hashes = []
+                        storage.serialized = []
+                        return
+                    }
+                    
+                    storage.serialized.removeSubrange(index..<nextIndex)
                     storage.hashes.remove(at: index)
                 }
                 // overwrite or remove on `nil`
@@ -323,6 +338,9 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
                 storage.serialized.append(0x0d)
                 storage.serialized.append(0x0a)
             }
+            
+            // Clean cache
+            storage.hashes = []
         }
     }
     

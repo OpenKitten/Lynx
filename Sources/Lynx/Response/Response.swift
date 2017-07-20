@@ -86,7 +86,7 @@ extension Client : HTTPRemote {
         
         memcpy(pointer, signature, consumed)
         
-        guard response.headers.buffer.count < 65_536 &- consumed &- eol.count else {
+        guard response.headers.buffer.count &+ consumed &+ 2 < 65_536 else {
             fatalError()
         }
         

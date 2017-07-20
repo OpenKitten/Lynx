@@ -11,7 +11,24 @@ public class TCPClient : TCPSocket {
     /// A buffer, specific to this client
     let incomingBuffer = Buffer()
     
-    public init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
+    public convenience init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
+        try self.init(hostname: hostname, port: port, onRead: onRead, true)
+        
+        self.readSource.setEventHandler(qos: .userInteractive) {
+            let read = recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
+            
+            guard read != 0 else {
+                self.readSource.cancel()
+                return
+            }
+            
+            onRead(self.incomingBuffer.pointer, read)
+        }
+        
+        self.readSource.resume()
+    }
+    
+    internal init(hostname: String, port: UInt16, onRead: @escaping ReadCallback, _ bool: Bool) throws {
         self.onRead = onRead
         
         try super.init(hostname: hostname, port: port)
@@ -32,25 +49,12 @@ public class TCPClient : TCPSocket {
         }
         
         self.readSource.setCancelHandler {
-            close(self.descriptor)
+            self.close()
         }
-        
-        self.readSource.setEventHandler(qos: .userInteractive) {
-            let read = self.readIntoBuffer()
-            
-            guard read != 0 else {
-                self.readSource.cancel()
-                return
-            }
-            
-            onRead(self.incomingBuffer.pointer, read)
-        }
-        
-        self.readSource.resume()
     }
     
-    open func readIntoBuffer() -> Int {
-        return recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
+    open func close() {
+        Darwin.close(self.descriptor)
     }
     
     var onRead: ReadCallback

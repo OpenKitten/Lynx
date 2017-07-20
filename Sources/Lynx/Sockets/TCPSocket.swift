@@ -96,7 +96,7 @@ public class TCPSocket {
     }
     
     /// Sends new data to the client
-    public func send(data pointer: UnsafePointer<UInt8>, withLengthOf length: Int) throws {
+    open func send(data pointer: UnsafePointer<UInt8>, withLengthOf length: Int) throws {
         #if os(Linux)
             let sent = Glibc.send(self.descriptor, pointer, length, 0)
         #else

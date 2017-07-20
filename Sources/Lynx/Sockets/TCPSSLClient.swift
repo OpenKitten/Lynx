@@ -22,16 +22,19 @@ public final class TCPSSLClient : TCPClient {
     #endif
     
     #if (os(macOS) || os(iOS)) && !OPENSSL
-        public override init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
+        public init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
             guard let context = SSLCreateContext(nil, .clientSide, .streamType) else {
                 throw TCPError.cannotCreateContext
             }
             
             self.sslClient = context
             
-            try super.init(hostname: hostname, port: port, onRead: onRead)
+            try super.init(hostname: hostname, port: port, onRead: onRead, false)
             
-            let i = SSLSetIOFuncs(context, { context, data, length in
+            var val = 1
+            setsockopt(self.descriptor, SOL_SOCKET, SO_NOSIGPIPE, &val, socklen_t(MemoryLayout<Int>.stride))
+            
+            SSLSetIOFuncs(context, { context, data, length in
                 let context = context.assumingMemoryBound(to: Int32.self).pointee
                 let lengthRequested = length.pointee
                 
@@ -75,7 +78,7 @@ public final class TCPSSLClient : TCPClient {
                     guard errno == EAGAIN else {
                         return OSStatus(errSecIO)
                     }
-                    
+                        
                     return OSStatus(errSSLWouldBlock)
                 }
                 
@@ -104,6 +107,20 @@ public final class TCPSSLClient : TCPClient {
             guard result == errSecSuccess || result == errSSLPeerAuthCompleted else {
                 throw TCPError.unableToConnect
             }
+            
+            self.readSource.setEventHandler(qos: .userInteractive) {
+                var read = 0
+                SSLRead(self.sslClient, self.incomingBuffer.pointer, Int(UInt16.max), &read)
+                
+                guard read != 0 else {
+                    self.readSource.cancel()
+                    return
+                }
+                
+                onRead(self.incomingBuffer.pointer, read)
+            }
+            
+            self.readSource.resume()
         }
     #else
     public override init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
@@ -154,13 +171,32 @@ public final class TCPSSLClient : TCPClient {
     }
     #endif
     
-    public override func readIntoBuffer() -> Int {
+    /// Sends new data to the client
+    public override func send(data pointer: UnsafePointer<UInt8>, withLengthOf length: Int) throws {
         #if (os(macOS) || os(iOS)) && !OPENSSL
-            var read = 0
-            SSLRead(self.sslClient, incomingBuffer.pointer, Int(UInt16.max), &read)
-            return read
+            var i = 0
+            SSLWrite(self.sslClient, pointer, length, &i)
+            
+            guard i == length else {
+                throw TCPError.sendFailure
+            }
         #else
-            return Int(SSL_read(self.sslClient, incomingBuffer.pointer, Int32(UInt16.max)))
+            var total = 0
+            
+            while total < length {
+                let sent = SSL_write(self.sslClient!, pointer.advanced(by: total), Int32(length))
+                
+                guard sent > 0 else {
+                    throw Error.cannotSendData
+                }
+                
+                total = total &+ numericCast(sent)
+            }
         #endif
+    }
+    
+    public override func close() {
+        SSLClose(self.sslClient)
+        Darwin.close(self.descriptor)
     }
 }

@@ -11,5 +11,8 @@ public enum TCPError : Error {
     
     /// The TCP Client could not connect to the remote
     case unableToConnect
+    
+    /// A failure setting up the context of SSL
+    case cannotCreateContext
 }
 

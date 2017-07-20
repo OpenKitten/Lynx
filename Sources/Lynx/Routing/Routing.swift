@@ -45,7 +45,7 @@ open class TrieRouter {
     
     /// Handles a request from the HTTP server
     public func handle(_ request: Request, for remote: HTTPRemote) {
-        guard let node = findNode(at: request.url, for: request) else {
+        guard let node = findNode(at: request.path, for: request) else {
             self.defaultHandler(request, remote)
             return
         }
@@ -83,7 +83,7 @@ open class TrieRouter {
                         let token = subNode.component.makeString(from: 1),
                         currentIndex < components.count,
                         let value = String(bytes: components[currentIndex], encoding: .utf8) {
-                        request.url.tokens[token] = value
+                        request.path.tokens[token] = value
                         node = subNode
                         continue recursiveSearch
                     }

@@ -19,7 +19,7 @@ public class TCPSocket {
     }
     
     /// The file descriptor on which connections are received
-    public let descriptor: Int32
+    public internal(set) var descriptor: Int32
     
     /// A queue where, asynchronously, the connection is being handled with
     open static let queue = DispatchQueue(label: "org.openkitten.lynx.socket", qos: .userInteractive)

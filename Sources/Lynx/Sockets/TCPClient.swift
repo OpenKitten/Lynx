@@ -1,12 +1,13 @@
-#if os(Linux)
-    import Glibc
-#else
-    import Darwin
-#endif
-
+import Foundation
 import Dispatch
 
-public final class TCPClient : TCPSocket {
+#if (os(macOS) || os(iOS))
+    import Darwin
+#else
+    import Glibc
+#endif
+
+public class TCPClient : TCPSocket {
     /// A buffer, specific to this client
     let incomingBuffer = Buffer()
     
@@ -35,7 +36,7 @@ public final class TCPClient : TCPSocket {
         }
         
         self.readSource.setEventHandler(qos: .userInteractive) {
-            let read = recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
+            let read = self.readIntoBuffer()
             
             guard read != 0 else {
                 self.readSource.cancel()
@@ -46,6 +47,10 @@ public final class TCPClient : TCPSocket {
         }
         
         self.readSource.resume()
+    }
+    
+    open func readIntoBuffer() -> Int {
+        return recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
     }
     
     var onRead: ReadCallback

@@ -93,10 +93,10 @@ public final class TCPSSLClient : TCPClient {
                 throw TCPError.unableToConnect
             }
             
-//            var hostname = [Int8](hostname.utf8.map { Int8($0) })
-//            guard SSLSetPeerDomainName(context, &hostname, hostname.count) == 0 else {
-//                throw TCPError.unableToConnect
-//            }
+            var hostname = [Int8](hostname.utf8.map { Int8($0) })
+            guard SSLSetPeerDomainName(context, &hostname, hostname.count) == 0 else {
+                throw TCPError.unableToConnect
+            }
             
             var result: Int32
             

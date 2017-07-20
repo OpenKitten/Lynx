@@ -84,10 +84,6 @@ public class TCPSocket {
         }
         
         self.readSource = DispatchSource.makeReadSource(fileDescriptor: descriptor, queue: TCPSocket.queue)
-        
-        self.readSource.setCancelHandler {
-            close(self.descriptor)
-        }
     }
     
     /// Sends new data to the client

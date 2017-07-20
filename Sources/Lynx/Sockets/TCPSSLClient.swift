@@ -34,7 +34,7 @@ public final class TCPSSLClient : TCPClient {
             var val = 1
             setsockopt(self.descriptor, SOL_SOCKET, SO_NOSIGPIPE, &val, socklen_t(MemoryLayout<Int>.stride))
             
-            SSLSetIOFuncs(context, { context, data, length in
+            SSLSetIOFuncs(self.sslClient, { context, data, length in
                 let context = context.assumingMemoryBound(to: Int32.self).pointee
                 let lengthRequested = length.pointee
                 
@@ -120,6 +120,11 @@ public final class TCPSSLClient : TCPClient {
                 onRead(self.incomingBuffer.pointer, read)
             }
             
+            self.readSource.setCancelHandler {
+                SSLClose(self.sslClient)
+                Darwin.close(self.descriptor)
+            }
+            
             self.readSource.resume()
         }
     #else
@@ -193,10 +198,5 @@ public final class TCPSSLClient : TCPClient {
                 total = total &+ numericCast(sent)
             }
         #endif
-    }
-    
-    public override func close() {
-        SSLClose(self.sslClient)
-        Darwin.close(self.descriptor)
     }
 }

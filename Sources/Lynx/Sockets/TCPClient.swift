@@ -25,6 +25,10 @@ public class TCPClient : TCPSocket {
             onRead(self.incomingBuffer.pointer, read)
         }
         
+        self.readSource.setCancelHandler {
+            self.close()
+        }
+        
         self.readSource.resume()
     }
     
@@ -46,10 +50,6 @@ public class TCPClient : TCPSocket {
             guard errno == EINPROGRESS || errno == EISCONN else {
                 throw TCPError.unableToConnect
             }
-        }
-        
-        self.readSource.setCancelHandler {
-            self.close()
         }
     }
     

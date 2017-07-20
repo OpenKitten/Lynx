@@ -22,7 +22,7 @@ public class TCPSocket {
     public internal(set) var descriptor: Int32
     
     /// A queue where, asynchronously, the connection is being handled with
-    open static let queue = DispatchQueue(label: "org.openkitten.lynx.socket", qos: .userInteractive)
+    static let queue = DispatchQueue(label: "org.openkitten.lynx.socket", qos: .userInteractive)
     
     /// The server's public address
     var server = UnsafeMutablePointer<sockaddr_storage>.allocate(capacity: 1)

@@ -64,7 +64,7 @@ public final class TCPSSLClient : TCPClient {
                 
                 return noErr
             }, { context, data, length in
-                let context = context.bindMemory(to: Int32.self, capacity: 1).pointee
+                let context = context.assumingMemoryBound(to: Int32.self).pointee
                 let toWrite = length.pointee
                 
                 var writeCount = Darwin.send(context, data, toWrite, 0)
@@ -89,14 +89,14 @@ public final class TCPSSLClient : TCPClient {
                 return noErr
             })
             
-            guard SSLSetConnection(context, &descriptor) == 0 else {
+            guard SSLSetConnection(context, &self.descriptor) == 0 else {
                 throw TCPError.unableToConnect
             }
             
-            var hostname = [Int8](hostname.utf8.map { Int8($0) })
-            guard SSLSetPeerDomainName(context, &hostname, hostname.count) == 0 else {
-                throw TCPError.unableToConnect
-            }
+//            var hostname = [Int8](hostname.utf8.map { Int8($0) })
+//            guard SSLSetPeerDomainName(context, &hostname, hostname.count) == 0 else {
+//                throw TCPError.unableToConnect
+//            }
             
             var result: Int32
             
@@ -120,7 +120,7 @@ public final class TCPSSLClient : TCPClient {
                 onRead(self.incomingBuffer.pointer, read)
             }
             
-            self.readSource.setCancelHandler {
+            self.readSource.setCancelHandler(qos: .userInteractive) {
                 SSLClose(self.sslClient)
                 Darwin.close(self.descriptor)
             }
@@ -180,9 +180,8 @@ public final class TCPSSLClient : TCPClient {
     public override func send(data pointer: UnsafePointer<UInt8>, withLengthOf length: Int) throws {
         #if (os(macOS) || os(iOS)) && !OPENSSL
             var i = 0
-            SSLWrite(self.sslClient, pointer, length, &i)
             
-            guard i == length else {
+            guard SSLWrite(self.sslClient, pointer, length, &i) == noErr, i == length else {
                 throw TCPError.sendFailure
             }
         #else

@@ -157,7 +157,7 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         return String(bytes: self.buffer, encoding: .utf8) ?? ""
     }
     
-    init(serialized: UnsafeBufferPointer<UInt8>) {
+    public init(serialized: UnsafeBufferPointer<UInt8>) {
         self.storage = HeadersStorage(serialized: serialized)
     }
     

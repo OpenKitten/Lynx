@@ -34,6 +34,15 @@ public enum Status {
             return code.description.utf8 + [0x20] + message.utf8
         }
     }
+    
+    public init(_ code: Int, message: String = "") {
+        switch code {
+        case 101: self = .upgrade
+        case 200: self = .ok
+        case 404: self = .notFound
+        default: self = .custom(code: code, message: message)
+        }
+    }
 }
 
 /// An HTTP response

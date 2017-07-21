@@ -101,14 +101,14 @@ public enum Method : Equatable, Hashable, Codable {
 /// Class so you don't copy the data at all and treat them like a state machine
 open class Request : Codable {
     public let method: Method
-    public var url: Path
-    public let headers: Headers
-    public let body: Body?
+    public var path: Path
+    public var headers: Headers
+    public var body: Body?
     
     /// Creates a new request
-    public init(method: Method, url: Path, headers: Headers = [:], body: UnsafeMutableBufferPointer<UInt8>? = nil, deallocating: Bool = false) {
+    public init(method: Method, path: Path, headers: Headers = [:], body: UnsafeMutableBufferPointer<UInt8>? = nil, deallocating: Bool = false) {
         self.method = method
-        self.url = url
+        self.path = path
         self.headers = headers
         
         if let body = body {

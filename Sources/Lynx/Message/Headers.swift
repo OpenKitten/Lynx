@@ -160,11 +160,11 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         return String(bytes: self.buffer, encoding: .utf8) ?? ""
     }
     
-    init(serialized: UnsafeBufferPointer<UInt8>) {
+    public init(serialized: UnsafeBufferPointer<UInt8>) {
         self.storage = HeadersStorage(serialized: serialized)
     }
     
-    var buffer: UnsafeBufferPointer<UInt8> {
+    public var buffer: UnsafeBufferPointer<UInt8> {
         return UnsafeBufferPointer(start: storage.serialized, count: storage.serialized.count)
     }
     
@@ -292,13 +292,21 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         }
         // TODO: UPDATE CACHE
         set {
+            _ = self[key]
+            
             if let index = storage.hashes.index(where: { $0.0 == key.hashValue }) {
                 let position = storage.hashes[index].position
                 
                 defer { storage.hashes = [] }
                 
                 if let newValue = newValue {
-                    let start = position &+ key.bytes.count
+                    let position = storage.hashes[index].position
+                    
+                    let start = position &+ key.bytes.count &+ 2
+                    
+                    guard start + 2 < storage.serialized.count else {
+                        return
+                    }
                     
                     var final: Int?
                     
@@ -330,6 +338,9 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
                 storage.serialized.append(0x0d)
                 storage.serialized.append(0x0a)
             }
+            
+            // Clean cache
+            storage.hashes = []
         }
     }
     

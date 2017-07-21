@@ -19,7 +19,7 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
     public var query: Query
     
     /// Serialized as UTF8 String bytes
-    internal var bytes: [UInt8] {
+    public var bytes: [UInt8] {
         guard let buffer = utf8String.makeBuffer() else {
             return []
         }

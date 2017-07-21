@@ -1,6 +1,9 @@
 /// Header keys have the same properties that values have
 public typealias HeaderValue = HeaderKey
 
+fileprivate let cookieKey: HeaderKey = "Cookie"
+fileprivate let setCookieKey: HeaderKey = "Set-Cookie"
+
 /// An HTTP header key
 public struct HeaderKey : Hashable, CustomDebugStringConvertible, CodingKey, Codable {
     /// Returns the string in this key
@@ -266,7 +269,7 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         }
     }
     
-    public private(set) subscript(key: HeaderKey) -> HeaderValue? {
+    public subscript(key: HeaderKey) -> HeaderValue? {
         get {
             if let position = storage.hashes.first(where: { $0.0 == key.hashValue })?.position {
                 let start = position &+ key.bytes.count &+ 2
@@ -290,9 +293,11 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
         // TODO: UPDATE CACHE
         set {
             if let index = storage.hashes.index(where: { $0.0 == key.hashValue }) {
+                let position = storage.hashes[index].position
+                
+                defer { storage.hashes = [] }
+                
                 if let newValue = newValue {
-                    let position = storage.hashes[index].position
-                    
                     let start = position &+ key.bytes.count
                     
                     var final: Int?
@@ -309,7 +314,9 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
                         storage.serialized.replaceSubrange(start..<final, with: newValue.bytes)
                     }
                 } else {
-                    storage.hashes.remove(at: index)
+                    let endPosition = (storage.hashes.count > index) ? storage.hashes[index + 1].position : storage.serialized.endIndex
+                    
+                    storage.serialized.removeSubrange(position..<endPosition)
                 }
                 // overwrite or remove on `nil`
             } else if let newValue = newValue {
@@ -323,6 +330,88 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
                 storage.serialized.append(0x0d)
                 storage.serialized.append(0x0a)
             }
+        }
+    }
+    
+    public var cookies: Cookies {
+        get {
+            var cookies = Cookies()
+            
+            search(for: nil)
+            
+            for (hash, start) in self.storage.hashes where hash == cookieKey.hashValue || hash == setCookieKey.hashValue {
+                var final: Int?
+                
+                finalChecker: for i in start..<storage.serialized.count {
+                    // \r
+                    if storage.serialized[i] == 0x0d {
+                        final = i
+                        break finalChecker
+                    }
+                }
+                
+                if let final = final {
+                    cookies.append(fromHeader: storage.serialized[start..<final])
+                }
+            }
+            
+            return cookies
+        }
+    }
+    
+    enum Subject {
+        case request
+        case response
+    }
+    
+    func setCookies(_ cookies: Cookies, for subject: Subject) {
+        search(for: nil)
+        
+        var removals = [(start: Int, end: Int, index: Int)]()
+        
+        defer { storage.hashes = [] }
+        
+        for (offset: index, element: (hash: hash, position: start)) in self.storage.hashes.enumerated() where hash == cookieKey.hashValue || hash == setCookieKey.hashValue {
+            var final: Int?
+            
+            finalChecker: for i in start..<storage.serialized.count {
+                // \r
+                if storage.serialized[i] == 0x0d {
+                    final = i
+                    break finalChecker
+                }
+            }
+            
+            if let final = final {
+                removals.append((start: start, end: final, index))
+            }
+        }
+        
+        removals.reversed().forEach { start, end, index in
+            self.storage.serialized.removeSubrange(start..<end)
+            self.storage.hashes.remove(at: index)
+        }
+        
+        if subject == .response {
+            for (name, cookie) in cookies {
+                storage.hashes.append((setCookieKey.hashValue, storage.serialized.endIndex))
+                
+                // ": ", "=" and "\r\n"
+                var header = setCookieKey.bytes + [0x3a, 0x20]
+                header += [UInt8](name.utf8) + [0x3d] + cookie.serialized()
+                header += [0x0d, 0x0a]
+                
+                self.storage.serialized.append(contentsOf: header)
+            }
+        } else {
+            storage.hashes.append((setCookieKey.hashValue, storage.serialized.endIndex))
+            let header = cookieKey.bytes + [0x3a, 0x20]
+            
+            let cookies = cookies.map({ name, cookie in
+                return [UInt8](name.utf8) + [0x3d] + cookie.serialized()
+            }).joined(separator: [0x3b, 0x20])
+            
+            self.storage.serialized.append(contentsOf: header + cookies + [0x0d, 0x0a])
         }
     }
     

@@ -4,6 +4,12 @@ public typealias HeaderValue = HeaderKey
 fileprivate let cookieKey: HeaderKey = "Cookie"
 fileprivate let setCookieKey: HeaderKey = "Set-Cookie"
 
+extension String {
+    init?(_ value: HeaderValue) {
+        self = value.stringValue
+    }
+}
+
 /// An HTTP header key
 public struct HeaderKey : Hashable, CustomDebugStringConvertible, CodingKey, Codable {
     /// Returns the string in this key

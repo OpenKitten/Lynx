@@ -86,10 +86,17 @@ public struct Query : CustomDebugStringConvertible {
 extension Request {
     /// Extracts a query from the request
     public var form: Query {
-        if let body = self.body {
-            return Query(buffer: UnsafeBufferPointer(start: body.buffer.baseAddress, count: body.buffer.count))
+        return self.body?.query ?? Query()
+    }
+}
+
+extension BodyRepresentable {
+    /// Extracts a query from any body
+    public var query: Query? {
+        guard let body = try? self.makeBody() else {
+            return nil
         }
         
-        return Query()
+        return Query(buffer: UnsafeBufferPointer(start: body.buffer.baseAddress, count: body.buffer.count))
     }
 }

@@ -12,12 +12,16 @@ fileprivate let okSignature = [UInt8]("HTTP/1.1 200 OK\r\n".utf8)
 fileprivate let notFoundSignature = [UInt8]("HTTP/1.1 404 NOT FOUND\r\n".utf8)
 
 /// The HTTP response status
+///
+/// TODO: Add more status codes
 public enum Status {
     case upgrade
     
     case ok
     
     case notFound
+    
+    case internalServerError
     
     case custom(code: Int, message: String)
     
@@ -30,16 +34,20 @@ public enum Status {
             return okSignature
         case .notFound:
             return notFoundSignature
+        case .internalServerError:
+            return [UInt8]("HTTP/1.1 500 INTERNAL SERVER ERROR\r\n".utf8)
         case .custom(let code, let message):
             return code.description.utf8 + [0x20] + message.utf8
         }
     }
     
+    /// Creates a new (custom) status code
     public init(_ code: Int, message: String = "") {
         switch code {
         case 101: self = .upgrade
         case 200: self = .ok
         case 404: self = .notFound
+        case 500: self = .internalServerError
         default: self = .custom(code: code, message: message)
         }
     }

@@ -26,7 +26,7 @@ public struct TestClient : HTTPRemote {
 /// A basic router
 open class TrieRouter {
     /// This will be called if no route is found
-    public var defaultHandler: RequestHandler = NotFound(body: "henk").handle
+    public var defaultHandler: RequestHandler = NotFound(body: "Not found").handle
     
     /// The UTF-8 character in front of a token
     ///

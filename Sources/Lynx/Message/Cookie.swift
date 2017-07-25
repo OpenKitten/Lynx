@@ -1,0 +1,112 @@
+fileprivate let cookieStart: HeaderKey = "Cookie: "
+fileprivate let setCookieStart: HeaderKey = "Set-Cookie: "
+
+public struct Cookies : Sequence, ExpressibleByDictionaryLiteral {
+    public init() {}
+    
+    private var cookies = [String : Cookie]()
+    
+    public subscript(key: String) -> Cookie? {
+        get {
+            return cookies[key]
+        }
+        set {
+            cookies[key] = newValue
+        }
+    }
+    
+    public init(dictionaryLiteral elements: (String, Cookie)...) {
+        for (key, cookie) in elements {
+            self[key] = cookie
+        }
+    }
+    
+    public mutating func append(_ cookie: Cookie, forKey key: String) {
+        self[key] = cookie
+    }
+    
+    mutating func append(fromHeader header: ArraySlice<UInt8>) {
+        func parseCookie(from string: String) {
+            var cookies = [(String, Cookie)]()
+            
+            for cookie in string.components(separatedBy: "; ") {
+                let cookie = cookie.trimmingCharacters(in: .whitespaces)
+                let keyValue = cookie.split(separator: "=")
+                
+                guard keyValue.count == 2 else {
+                    continue
+                }
+                
+                cookies.append((String(keyValue[0]), Cookie(valueOf: String(keyValue[1]))))
+            }
+            
+            for (key, cookie) in cookies {
+                self[key] = cookie
+            }
+        }
+        
+        if header.starts(with: cookieStart.bytes), header.count > cookieStart.bytes.count {
+            guard let cookies = String(bytes: header[(header.startIndex + cookieStart.bytes.count) ..< header.endIndex], encoding: .utf8) else {
+                return
+            }
+            
+            parseCookie(from: cookies)
+        } else if header.starts(with: setCookieStart.bytes), header.count > cookieStart.bytes.count {
+            guard let cookies = String(bytes: header[(header.startIndex + cookieStart.bytes.count) ..< header.endIndex], encoding: .utf8) else {
+                return
+            }
+            
+            parseCookie(from: cookies)
+        }
+    }
+    
+    public func makeIterator() -> DictionaryIterator<String, Cookie> {
+        return cookies.makeIterator()
+    }
+}
+
+extension Request {
+    public var cookies: Cookies {
+        get {
+            return headers.cookies
+        }
+        set {
+            headers.setCookies(newValue, for: .request)
+        }
+    }
+}
+
+extension Response {
+    public var cookies: Cookies {
+        get {
+            return headers.cookies
+        }
+        set {
+            headers.setCookies(newValue, for: .response)
+        }
+    }
+}
+
+public struct Cookie : ExpressibleByStringLiteral {
+    public var value: String
+    
+    public init(valueOf value: String) {
+        self.value = value
+    }
+    
+    public init(stringLiteral value: String) {
+        self.value = value
+    }
+    
+    public init(unicodeScalarLiteral value: String) {
+        self.value = value
+    }
+    
+    public init(extendedGrahemeLiteral value: String) {
+        self.value = value
+    }
+    
+    internal func serialized() -> [UInt8] {
+        return [UInt8](value.utf8)
+    }
+}

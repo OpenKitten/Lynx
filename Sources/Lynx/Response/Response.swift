@@ -14,7 +14,7 @@ fileprivate let notFoundSignature = [UInt8]("HTTP/1.1 404 NOT FOUND\r\n".utf8)
 /// The HTTP response status
 ///
 /// TODO: Add more status codes
-public enum Status {
+public enum Status : ExpressibleByIntegerLiteral {
     case upgrade
     
     case ok
@@ -64,6 +64,10 @@ public enum Status {
         case 500: self = .internalServerError
         default: self = .custom(code: code, message: message)
         }
+    }
+    
+    public init(integerLiteral value: Int) {
+        self.init(value)
     }
 }
 

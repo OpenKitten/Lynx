@@ -26,7 +26,7 @@ public struct TestClient : HTTPRemote {
 /// A basic router
 open class TrieRouter {
     /// This will be called if no route is found
-    public var defaultHandler: RequestHandler = NotFound(body: "Not found").handle
+    public var fallbackHandler: RequestHandler = NotFound(body: "Not found").handle
     
     /// The UTF-8 character in front of a token
     ///
@@ -39,19 +39,19 @@ open class TrieRouter {
     }
     
     /// Changes the default handler
-    public func handleDefault(using closure: @escaping RequestHandler) {
-        self.defaultHandler = closure
+    public func handleFallback(using closure: @escaping RequestHandler) {
+        self.fallbackHandler = closure
     }
     
     /// Handles a request from the HTTP server
     public func handle(_ request: Request, for remote: HTTPRemote) {
         guard let node = findNode(at: request.path, for: request) else {
-            self.defaultHandler(request, remote)
+            self.fallbackHandler(request, remote)
             return
         }
         
         guard let handler = node.leafs[request.method] else {
-            self.defaultHandler(request, remote)
+            self.fallbackHandler(request, remote)
             return
         }
         

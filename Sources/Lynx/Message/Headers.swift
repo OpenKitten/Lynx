@@ -6,15 +6,23 @@ fileprivate let setCookieKey: HeaderKey = "Set-Cookie"
 
 extension String {
     init?(_ value: HeaderValue) {
-        self = value.stringValue
+        self = value.rawValue
     }
 }
 
 /// An HTTP header key
-public struct HeaderKey : Hashable, CustomDebugStringConvertible, CodingKey, Codable {
+public struct HeaderKey : Hashable, CustomDebugStringConvertible, CodingKey, Codable, RawRepresentable {
+    public init?(rawValue: String) {
+        self.init(rawValue)
+    }
+    
     /// Returns the string in this key
-    public var stringValue: String {
+    public var rawValue: String {
         return utf8String.makeString() ?? ""
+    }
+    
+    public var stringValue: String {
+        return rawValue
     }
     
     public var intValue: Int?
@@ -27,7 +35,7 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible, CodingKey, Cod
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        try container.encode(self.stringValue)
+        try container.encode(self.rawValue)
     }
     
     internal var utf8String: UTF8String
@@ -75,7 +83,7 @@ public struct HeaderKey : Hashable, CustomDebugStringConvertible, CodingKey, Cod
     
     /// Debugging helper
     public var debugDescription: String {
-        return self.stringValue
+        return self.rawValue
     }
     
     public static func +(lhs: HeaderKey, rhs: HeaderKey) -> HeaderKey {
@@ -89,13 +97,13 @@ extension String {
             return nil
         }
         
-        self = value.stringValue
+        self = value.rawValue
     }
 }
 
 extension Int {
     public init?(_ value: HeaderValue?) {
-        guard let value = value, let int = Int(value.stringValue) else {
+        guard let value = value, let int = Int(value.rawValue) else {
             return nil
         }
         

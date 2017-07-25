@@ -123,6 +123,8 @@ final class ClientHolder {
 public struct Client {
     let holder: ClientHolder
     
+    public static var errorHandler: ((Error & Encodable, Client) -> ())?
+    
     /// The queue on which data is received
     fileprivate static let queue = DispatchQueue(label: "org.openkitten.lynx.clientReadQueue", qos: DispatchQoS.userInteractive, attributes: .concurrent)
     

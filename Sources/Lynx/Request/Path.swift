@@ -1,5 +1,9 @@
 /// An HTTP request path
-public struct Path : Hashable, CustomDebugStringConvertible, Codable, ExpressibleByStringLiteral {
+public struct Path : Hashable, CustomDebugStringConvertible, Codable, ExpressibleByStringLiteral, RawRepresentable {
+    public init?(rawValue: String) {
+        self.init(url: rawValue)
+    }
+    
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let string = try container.decode(String.self)
@@ -9,7 +13,7 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        try container.encode(self.string)
+        try container.encode(self.rawValue)
     }
     
     /// The underlying string
@@ -39,7 +43,7 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
     }
     
     /// This path represented as a String
-    public var string: String {
+    public var rawValue: String {
         let path = String(bytes: bytes, encoding: .utf8) ?? ""
         
         if self.query.storage.utf8String.byteCount > 0 {
@@ -102,6 +106,6 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
     
     /// Useful for debugging
     public var debugDescription: String {
-        return self.string
+        return self.rawValue
     }
 }

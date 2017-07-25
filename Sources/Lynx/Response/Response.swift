@@ -74,7 +74,28 @@ public enum Status : ExpressibleByIntegerLiteral {
 /// An HTTP response
 ///
 /// To be returned to a client
-public class Response {
+public class Response : Codable {
+    public func encode(to encoder: Encoder) throws {
+        let body = try self.body?.makeBody()
+        var container = encoder.container(keyedBy: Response.CodingKeys.self)
+        
+        try container.encode(status, forKey: .status)
+        try container.encode(headers, forKey: .headers)
+        try container.encode(body, forKey: .body)
+    }
+    
+    public required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: Response.CodingKeys.self)
+        
+        self.status = try container.decode(Status.self, forKey: .status)
+        self.headers = try container.decode(Headers.self, forKey: .headers)
+        self.body = try container.decodeIfPresent(Body.self, forKey: .body)
+    }
+    
+    fileprivate enum CodingKeys : String, Swift.CodingKey {
+        case status, headers, body
+    }
+    
     /// The resulting status
     public var status: Status
     
@@ -109,6 +130,10 @@ public protocol HTTPRemote {
 
 extension Client : HTTPRemote {
     public func error(_ error: Error) {
+        if let error = error as? Encodable & Error {
+            Client.errorHandler?(error, self)
+        }
+        
         self.close()
     }
     
@@ -166,6 +191,17 @@ extension Client : HTTPRemote {
                 try self.send(data: baseAddress, withLengthOf: body.buffer.count)
             }
         }
+    }
+}
+
+extension Status : Codable {
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.code)
+    }
+    
+    public init(from decoder: Decoder) throws {
+        self.init(try decoder.singleValueContainer().decode(Int.self))
     }
 }
 

@@ -15,10 +15,8 @@ import Dispatch
 public final class TCPSSLClient : TCPClient {
     #if (os(macOS) || os(iOS)) && !OPENSSL
         private let sslClient: SSLContext
+        var descrClone: Int32 = 0
     #else
-        private let sslClient: UnsafeMutablePointer<SSL>
-        private let sslMethod: UnsafePointer<SSL_METHOD>
-        private let sslContext: UnsafeMutablePointer<SSL_CTX>
     #endif
     
     #if (os(macOS) || os(iOS)) && !OPENSSL
@@ -30,6 +28,9 @@ public final class TCPSSLClient : TCPClient {
             self.sslClient = context
             
             try super.init(hostname: hostname, port: port, onRead: onRead, false)
+            
+            // workaround for a swift bug
+            descrClone = self.descriptor
             
             var val = 1
             setsockopt(self.descriptor, SOL_SOCKET, SO_NOSIGPIPE, &val, socklen_t(MemoryLayout<Int>.stride))
@@ -89,7 +90,7 @@ public final class TCPSSLClient : TCPClient {
                 return noErr
             })
             
-            guard SSLSetConnection(context, &self.descriptor) == 0 else {
+            guard SSLSetConnection(context, &self.descrClone) == 0 else {
                 throw TCPError.unableToConnect
             }
             
@@ -128,52 +129,6 @@ public final class TCPSSLClient : TCPClient {
             self.readSource.resume()
         }
     #else
-    public override init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
-        try super.init(hostname: hostname, port: port, onRead: onRead)
-    
-        let verifyCertificate = !(options["invalidCertificateAllowed"] as? Bool ?? false)
-
-        let method = SSLv23_client_method()
-
-        guard let ctx = SSL_CTX_new(method) else {
-            throw Error.cannotCreateContext
-        }
-
-        self.sslContext = ctx
-        self.sslMethod = method
-
-        SSL_CTX_ctrl(ctx, SSL_CTRL_MODE, SSL_MODE_AUTO_RETRY, nil)
-        SSL_CTX_ctrl(ctx, SSL_CTRL_OPTIONS, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION, nil)
-
-        if !verifyCertificate {
-            SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nil)
-        }
-
-        guard  SSL_CTX_set_cipher_list(ctx, "DEFAULT") == 1 else {
-            throw Error.cannotCreateContext
-        }
-
-        if let CAFile = options["CAFile"] as? String {
-            SSL_CTX_load_verify_locations(ctx, CAFile, nil)
-        }
-
-        guard let ssl = SSL_new(ctx) else {
-            throw Error.cannotConnect
-        }
-
-        self.sslClient = ssl
-
-        guard SSL_set_fd(ssl, plainClient) == 1 else {
-            throw Error.cannotConnect
-        }
-
-        var hostname = [UInt8](hostname.utf8)
-        SSL_ctrl(ssl, SSL_CTRL_SET_TLSEXT_HOSTNAME, Int(TLSEXT_NAMETYPE_host_name), &hostname)
-
-        guard SSL_connect(ssl) == 1, SSL_do_handshake(ssl) == 1 else {
-            throw Error.cannotConnect
-        }
-    }
     #endif
     
     /// Sends new data to the client
@@ -185,17 +140,6 @@ public final class TCPSSLClient : TCPClient {
                 throw TCPError.sendFailure
             }
         #else
-            var total = 0
-            
-            while total < length {
-                let sent = SSL_write(self.sslClient!, pointer.advanced(by: total), Int32(length))
-                
-                guard sent > 0 else {
-                    throw Error.cannotSendData
-                }
-                
-                total = total &+ numericCast(sent)
-            }
         #endif
     }
 }

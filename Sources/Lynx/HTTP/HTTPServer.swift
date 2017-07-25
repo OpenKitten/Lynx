@@ -39,6 +39,8 @@ public final class HTTPServer {
         while true { sleep(UInt32.max) }
     }
     
+    var clients = [Client]()
+    
     /// Handles an incoming client and starts HTTP parsing/responding
     func connection(from client: Client) {
         let requestProgress = RequestPlaceholder()

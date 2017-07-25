@@ -87,6 +87,16 @@ extension Response {
     }
 }
 
+extension String {
+    public init?(_ cookie: Cookie?) {
+        guard let me = cookie?.value else {
+            return nil
+        }
+        
+        self = me
+    }
+}
+
 public struct Cookie : ExpressibleByStringLiteral {
     public var value: String
     

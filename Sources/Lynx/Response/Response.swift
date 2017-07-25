@@ -96,7 +96,12 @@ extension Client : HTTPRemote {
     
     public func send(_ response: Response) throws {
         let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: 65_536)
-        defer { pointer.deallocate(capacity: 65_536) }
+        pointer.initialize(to: 0, count: 65_536)
+        
+        defer {
+            pointer.deinitialize(count: 65_536)
+            pointer.deallocate(capacity: 65_536)
+        }
         
         let signature = response.status.signature
         var consumed = signature.count

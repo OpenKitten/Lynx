@@ -19,13 +19,14 @@ internal class UTF8StringBuffer {
     }
     
     deinit {
+        self.bytes?.deinitialize(count: self.count)
         self.bytes?.deallocate(capacity: self.count)
     }
     
     init(_ bytes: [UInt8]) {
         let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: bytes.count)
+        pointer.initialize(from: bytes, count: bytes.count)
         self.count = bytes.count
-        memcpy(pointer, bytes, count)
         self.bytes = pointer
         var hashValue = 0
         

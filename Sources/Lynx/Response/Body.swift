@@ -10,7 +10,7 @@ public class Body : Codable {
         let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: data.count)
         
         _ = data.withUnsafeBytes { dataBuffer in
-            memcpy(pointer, dataBuffer, data.count)
+            pointer.initialize(from: dataBuffer, count: data.count)
         }
         
         self.buffer = UnsafeMutableBufferPointer(start: pointer, count: data.count)

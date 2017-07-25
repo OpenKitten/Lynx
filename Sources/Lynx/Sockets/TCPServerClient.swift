@@ -16,10 +16,12 @@ final class Buffer {
     
     init(capacity: Int = 65_507) {
         pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: capacity)
+        pointer.initialize(to: 0, count: capacity)
         self.capacity = capacity
     }
     
     deinit {
+        pointer.deinitialize(count: capacity)
         pointer.deallocate(capacity: capacity)
     }
 }
@@ -47,12 +49,15 @@ final class ClientHolder {
     
     var receive: ReadCallback?
     
-    init(descriptor: Int32, addr: UnsafeMutablePointer<sockaddr_storage>) {
+    init(descriptor: Int32, addr: UnsafeMutablePointer<sockaddr_storage>, onClose:  @escaping (() -> ())) {
         self.descriptor = descriptor
         self.addr = addr
         self.readSource = DispatchSource.makeReadSource(fileDescriptor: self.descriptor, queue: Client.queue)
         
         self.readSource.setCancelHandler {
+            self.receive = nil
+            onClose()
+            
             #if os(Linux)
                 Glibc.close(descriptor)
             #else
@@ -160,7 +165,4 @@ public struct Client {
             throw TCPError.sendFailure
         }
     }
-    
-    
 }
-

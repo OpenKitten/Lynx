@@ -6,6 +6,8 @@
 
 import Dispatch
 
+fileprivate let clientQueue = DispatchQueue(label: "org.openkitten.lynx.clientQueue", qos: .userInteractive)
+
 /// A plain TCP server that can handle incoming clients
 public final class TCPServer : TCPSocket {
     /// A closure to call for each connected client
@@ -28,6 +30,8 @@ public final class TCPServer : TCPSocket {
             throw TCPError.bindFailed
         }
         
+        var clients = [Int32 : ClientHolder]()
+        
         // On every connected client, this triggers
         readSource.setEventHandler {
             let addr = UnsafeMutablePointer<sockaddr_storage>.allocate(capacity: 1)
@@ -40,7 +44,15 @@ public final class TCPServer : TCPSocket {
                 return
             }
             
-            let holder = ClientHolder(descriptor: clientDescriptor, addr: addr)
+            let holder = ClientHolder(descriptor: clientDescriptor, addr: addr) {
+                clientQueue.sync {
+                    clients[clientDescriptor] = nil
+                }
+            }
+            
+            clientQueue.sync {
+                clients[clientDescriptor] = holder
+            }
             
             self.onConnect(Client(holder: holder))
         }

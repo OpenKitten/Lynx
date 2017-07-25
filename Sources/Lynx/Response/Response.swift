@@ -25,6 +25,20 @@ public enum Status {
     
     case custom(code: Int, message: String)
     
+    public static func ==(lhs: Status, rhs: Status) -> Bool {
+        return lhs.code == rhs.code
+    }
+    
+    public var code: Int {
+        switch self {
+        case .upgrade: return 101
+        case .ok: return 200
+        case .notFound: return 404
+        case .internalServerError: return 500
+        case .custom(let code, _): return code
+        }
+    }
+    
     /// Returns a signature, for internal purposes only
     fileprivate var signature: [UInt8] {
         switch self {

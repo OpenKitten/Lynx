@@ -32,10 +32,12 @@ open class TrieRouter {
     ///
     /// In `/users/:id/` the token is `:id` and the tokenByte is `:` as UTF-8 character
     public let tokenByte: UInt8?
+    public let splitPaths: Bool
     
     /// Creates a new router
-    public init(startingTokensWith byte: UInt8? = nil) {
+    public init(startingTokensWith byte: UInt8? = nil, splittingPaths: Bool = true) {
         self.tokenByte = byte
+        self.splitPaths = splittingPaths
     }
     
     /// Changes the default handler
@@ -98,7 +100,15 @@ open class TrieRouter {
     
     /// A public API for registering a new route
     public func register(at path: [String], method: Method, handler: @escaping RequestHandler) {
-        let path = path.flatMap { component in
+        let basePath: [String]
+        
+        if splitPaths {
+            basePath = path.map { $0.split(separator: "/") }.reduce([], +).map(String.init)
+        } else {
+            basePath = path
+        }
+        
+        let path = basePath.flatMap { component in
             if component.utf8.first == tokenByte {
                 return component
             } else {

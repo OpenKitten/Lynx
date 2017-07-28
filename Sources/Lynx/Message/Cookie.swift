@@ -1,10 +1,20 @@
 fileprivate let cookieStart: HeaderKey = "Cookie: "
 fileprivate let setCookieStart: HeaderKey = "Set-Cookie: "
 
+public func +=(lhs: inout Cookies, rhs: Cookies) {
+    lhs.append(contentsOf: rhs)
+}
+
 public struct Cookies : Sequence, ExpressibleByDictionaryLiteral {
     public init() {}
     
     private var cookies = [String : Cookie]()
+    
+    public mutating func append(contentsOf cookies: Cookies) {
+        for (name, cookie) in cookies.cookies {
+            self.cookies[name] = cookie
+        }
+    }
     
     public subscript(key: String) -> Cookie? {
         get {

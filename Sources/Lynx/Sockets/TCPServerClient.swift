@@ -61,7 +61,7 @@ final class ClientHolder {
             #if os(Linux)
                 Glibc.close(descriptor)
             #else
-                cClose(descriptor)
+                _ = cClose(descriptor)
             #endif
         }
     }

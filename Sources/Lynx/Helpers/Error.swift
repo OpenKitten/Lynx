@@ -14,5 +14,8 @@ public enum TCPError : Error {
     
     /// A failure setting up the context of SSL
     case cannotCreateContext
+    
+    /// TODO: FIX
+    case unsupported
 }
 

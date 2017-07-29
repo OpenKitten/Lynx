@@ -56,7 +56,7 @@ public class TCPClient : TCPSocket {
     }
     
     open func close() {
-        cClose(self.descriptor)
+        _ = cClose(self.descriptor)
     }
     
     var onRead: ReadCallback

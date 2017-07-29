@@ -127,12 +127,15 @@ public final class TCPSSLClient : TCPClient {
             
             self.readSource.setCancelHandler(qos: .userInteractive) {
                 SSLClose(self.sslClient)
-                cClose(self.descriptor)
+                _ = cClose(self.descriptor)
             }
             
             self.readSource.resume()
         }
     #else
+        public init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
+            throw TCPError.unsupported
+        }
     #endif
     
     /// Sends new data to the client
@@ -144,6 +147,7 @@ public final class TCPSSLClient : TCPClient {
                 throw TCPError.sendFailure
             }
         #else
+            throw TCPError.unsupported
         #endif
     }
 }

@@ -4,9 +4,11 @@ import Dispatch
 #if (os(macOS) || os(iOS))
     import Darwin
     fileprivate let sockConnect = Darwin.connect
+    let cClose = Darwin.close
 #else
     import Glibc
     fileprivate let sockConnect = connect
+    let cClose = Glibc.close
 #endif
 
 public class TCPClient : TCPSocket {
@@ -62,7 +64,7 @@ public class TCPClient : TCPSocket {
     }
     
     open func close() {
-        Darwin.close(self.descriptor)
+        _ = cClose(self.descriptor)
     }
     
     var onRead: ReadCallback

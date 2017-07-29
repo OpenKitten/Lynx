@@ -101,4 +101,5 @@ public enum WebSocketError : Error {
     case invalidFrame
     case invalidUpgrade
     case couldNotConnect
+    case invalidBuffer
 }

@@ -79,7 +79,11 @@ public final class MultipartForm {
         let key = [UInt8](key.utf8)
         
         for part in parts {
-            if part.name.count == key.count && memcmp(part.name.baseAddress, key, key.count) == 0 {
+            guard let address = part.name.baseAddress else {
+                continue
+            }
+            
+            if part.name.count == key.count && memcmp(address, key, key.count) == 0 {
                 return part
             }
         }
@@ -149,7 +153,7 @@ public final class MultipartForm {
             let contentDisposition = base.buffer(until: &currentPosition)
             
             // If the value is a normal FormData
-            if formData.count &+ 1 < length, contentDisposition.count == formData.count, memcmp(contentDisposition.baseAddress, formData, formData.count) == 0 {
+            if formData.count &+ 1 < length, contentDisposition.count == formData.count, let address = contentDisposition.baseAddress, memcmp(address, formData, formData.count) == 0 {
                 // ' ' Scan past the header, for the name
                 guard contentDisposition.baseAddress?[contentDisposition.count] == 0x20 else {
                     return nil

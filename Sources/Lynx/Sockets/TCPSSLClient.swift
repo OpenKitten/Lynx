@@ -19,15 +19,18 @@ public final class TCPSSLClient : TCPClient {
     #else
     #endif
     
+    let hostname: String
+    
     #if (os(macOS) || os(iOS)) && !OPENSSL
-        public init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
+        public override init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {
             guard let context = SSLCreateContext(nil, .clientSide, .streamType) else {
                 throw TCPError.cannotCreateContext
             }
             
             self.sslClient = context
+            self.hostname = hostname
             
-            try super.init(hostname: hostname, port: port, onRead: onRead, false)
+            try super.init(hostname: hostname, port: port, onRead: onRead)
             
             // workaround for a swift bug
             descrClone = self.descriptor
@@ -90,25 +93,6 @@ public final class TCPSSLClient : TCPClient {
                 return noErr
             })
             
-            guard SSLSetConnection(context, &self.descrClone) == 0 else {
-                throw TCPError.unableToConnect
-            }
-            
-            var hostname = [Int8](hostname.utf8.map { Int8($0) })
-            guard SSLSetPeerDomainName(context, &hostname, hostname.count) == 0 else {
-                throw TCPError.unableToConnect
-            }
-            
-            var result: Int32
-            
-            repeat {
-                result = SSLHandshake(context)
-            } while result == errSSLWouldBlock
-            
-            guard result == errSecSuccess || result == errSSLPeerAuthCompleted else {
-                throw TCPError.unableToConnect
-            }
-            
             self.readSource.setEventHandler(qos: .userInteractive) {
                 var read = 0
                 SSLRead(self.sslClient, self.incomingBuffer.pointer, Int(UInt16.max), &read)
@@ -125,8 +109,29 @@ public final class TCPSSLClient : TCPClient {
                 SSLClose(self.sslClient)
                 Darwin.close(self.descriptor)
             }
+        }
+    
+        public override func connect() throws {
+            try super.connect(startReading: false)
             
-            self.readSource.resume()
+            guard SSLSetConnection(sslClient, &self.descrClone) == 0 else {
+                throw TCPError.unableToConnect
+            }
+            
+            var hostname = [Int8](self.hostname.utf8.map { Int8($0) })
+            guard SSLSetPeerDomainName(sslClient, &hostname, hostname.count) == 0 else {
+                throw TCPError.unableToConnect
+            }
+            
+            var result: Int32
+            
+            repeat {
+                result = SSLHandshake(sslClient)
+            } while result == errSSLWouldBlock
+            
+            guard result == errSecSuccess || result == errSSLPeerAuthCompleted else {
+                throw TCPError.unableToConnect
+            }
         }
     #else
     #endif

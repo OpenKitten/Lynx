@@ -41,9 +41,11 @@ internal final class Frame {
             throw WebSocketError.invalidFrame
         }
         
+        // If the FIN bit is set
         final = base[0] & 0b10000000 == 0b10000000
         self.opCode = code
         
+        // Extract the payload bits
         var payloadLength = UInt64(base[1] & 0b01111111)
         var consumed = 2
         var base = base.advanced(by: 2)

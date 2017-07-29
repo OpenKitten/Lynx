@@ -9,9 +9,8 @@ import Dispatch
     import Security
 #endif
 #else
-    private let sslClient: UnsafeMutablePointer<SSL>?
-    private let sslMethod: UnsafePointer<SSL_METHOD>?
-    private let sslContext: UnsafeMutablePointer<SSL_CTX>?
+    import Glibc
+    import KittenCTLS
 #endif
 
 public final class TCPSSLClient : TCPClient {

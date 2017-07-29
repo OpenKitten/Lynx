@@ -2,14 +2,16 @@ import Foundation
 import Dispatch
 
 #if (os(macOS) || os(iOS))
-    import Security
     import Darwin
 #if OPENSSL
     import KittenCTLS
+#else
+    import Security
 #endif
 #else
-    import KittenCTLS
-    import Glibc
+    private let sslClient: UnsafeMutablePointer<SSL>?
+    private let sslMethod: UnsafePointer<SSL_METHOD>?
+    private let sslContext: UnsafeMutablePointer<SSL_CTX>?
 #endif
 
 public final class TCPSSLClient : TCPClient {
@@ -17,6 +19,9 @@ public final class TCPSSLClient : TCPClient {
         private let sslClient: SSLContext
         var descrClone: Int32 = 0
     #else
+    private let sslClient: UnsafeMutablePointer<SSL>?
+    private let sslMethod: UnsafePointer<SSL_METHOD>?
+    private let sslContext: UnsafeMutablePointer<SSL_CTX>?
     #endif
     
     #if (os(macOS) || os(iOS)) && !OPENSSL

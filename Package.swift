@@ -27,3 +27,10 @@ let package = Package(
             dependencies: ["Lynx"]),
     ]
 )
+
+// Provides Sockets + SSL
+#if !os(macOS) && !os(iOS)
+package.dependencies.append(.package(url: "https://github.com/OpenKitten/KittenCTLS.git", from: Version(1,0,0)))
+#else
+    package.dependencies.append(.package(url: "https://github.com/OpenKitten/KittenCTLS.git", from: Version(1,0,0)))
+#endif

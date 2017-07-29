@@ -2,16 +2,16 @@ import Foundation
 import CryptoKitten
 
 public final class WebSocket {
-    public typealias TextHandler = ((String) throws -> ())
-    public typealias BinaryHandler = ((UnsafePointer<UInt8>, Int) throws -> ())
+    public typealias TextHandler = ((WebSocket, String) throws -> ())
+    public typealias BinaryHandler = ((WebSocket, UnsafeBufferPointer<UInt8>) throws -> ())
     public typealias CloseHandler = ((WebSocket) -> ())
     
     let remote: Client
     
     var onClose: CloseHandler?
     
-    var textHandler: TextHandler?
-    var binaryHandler: BinaryHandler?
+    public var onText: TextHandler?
+    public var onBinary: BinaryHandler?
     
     public init(from request: Request, to client: Client) throws {
         guard
@@ -51,7 +51,6 @@ public final class WebSocket {
     
     public func close() {
         remote.close()
-        
         onClose?(self)
     }
     
@@ -138,6 +137,14 @@ public final class WebSocket {
         try self.send(dataAt: bytes, length: bytes.count)
     }
     
+    public func send(_ data: UnsafeBufferPointer<UInt8>) throws {
+        guard let base = data.baseAddress else {
+            throw WebSocketError.invalidBuffer
+        }
+        
+        try self.send(dataAt: base, length: data.count)
+    }
+    
     public func send(_ data: Data) throws {
         try data.withUnsafeBytes {
             try self.send(dataAt: $0, length: data.count)
@@ -146,30 +153,6 @@ public final class WebSocket {
     
     // MARK - Receiving
     
-    public func onText(_ handler: @escaping TextHandler) {
-        self.textHandler = handler
-    }
-    
-    public func onBinary(_ handler: @escaping BinaryHandler) {
-        self.binaryHandler = handler
-    }
-    
-    public func onBytes(_ handler: @escaping (([UInt8]) throws -> ())) {
-        self.binaryHandler = { pointer, length in
-            let buffer = UnsafeBufferPointer(start: pointer, count: length)
-            
-            try handler(Array(buffer))
-        }
-    }
-    
-    public func onData(_ handler: @escaping ((Data) throws -> ())) {
-        self.binaryHandler = { pointer, length in
-            let buffer = UnsafeBufferPointer(start: pointer, count: length)
-            
-            try handler(Data(buffer))
-        }
-    }
-    
     func receive(data: UnsafePointer<UInt8>, length: Int) {
         do {
             let message = try Frame(from: data, length: length)
@@ -177,11 +160,11 @@ public final class WebSocket {
             switch message.opCode {
             case .text:
                 if let string = String(bytes: message.data, encoding: .utf8) {
-                    try textHandler?(string)
+                    try self.onText?(self, string)
                 }
             case .binary:
                 if let pointer = message.data.baseAddress {
-                    try self.binaryHandler?(pointer, message.data.count)
+                    try self.onBinary?(self, UnsafeBufferPointer(start: pointer, count: message.data.count))
                 }
             case .ping:
                 guard message.data.count < 126 else {

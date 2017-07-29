@@ -3,11 +3,20 @@
     "pins": [
       {
         "package": "CryptoKitten",
-        "repositoryURL": "http://github.com/OpenKitten/CryptoKitten.git",
+        "repositoryURL": "https://github.com/OpenKitten/CryptoKitten.git",
         "state": {
           "branch": null,
           "revision": "e5de7a003738459804cf71e8bb814a936c637b56",
           "version": "0.1.0"
+        }
+      },
+      {
+        "package": "KittenCTLS",
+        "repositoryURL": "https://github.com/OpenKitten/KittenCTLS.git",
+        "state": {
+          "branch": null,
+          "revision": "be8c42f22975e8033c6f342f42b8999407672bb3",
+          "version": "1.0.1"
         }
       }
     ]

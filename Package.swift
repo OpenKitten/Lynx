@@ -23,7 +23,7 @@ let package = Package(
             name: "Lynx",
             dependencies: ["CryptoKitten"]),
         .testTarget(
-            name: "Lynxtests",
+            name: "LynxTests",
             dependencies: ["Lynx"]),
     ]
 )

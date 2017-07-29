@@ -3,8 +3,10 @@ import Dispatch
 
 #if (os(macOS) || os(iOS))
     import Darwin
+    let cClose = Darwin.close
 #else
     import Glibc
+    let cClose = Glibc.close
 #endif
 
 public class TCPClient : TCPSocket {
@@ -54,7 +56,7 @@ public class TCPClient : TCPSocket {
     }
     
     open func close() {
-        Darwin.close(self.descriptor)
+        cClose(self.descriptor)
     }
     
     var onRead: ReadCallback

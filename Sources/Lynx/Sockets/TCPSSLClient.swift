@@ -127,7 +127,7 @@ public final class TCPSSLClient : TCPClient {
             
             self.readSource.setCancelHandler(qos: .userInteractive) {
                 SSLClose(self.sslClient)
-                Darwin.close(self.descriptor)
+                cClose(self.descriptor)
             }
             
             self.readSource.resume()

@@ -11,6 +11,7 @@ import Dispatch
     let cClose = Glibc.close
 #endif
 
+/// A plain TCP client Socket. No TLS/SSL involved
 public class TCPClient : TCPSocket {
     /// A buffer, specific to this client
     let incomingBuffer = Buffer()

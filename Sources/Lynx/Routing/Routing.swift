@@ -4,7 +4,7 @@ public protocol Router {
     func handle(_ request: Request, for remote: HTTPRemote)
     
     /// Registers a new route
-    func register(at path: [String], method: Method, isFallbackHandler: Bool, handler: @escaping RequestHandler)
+    func register(at path: [String], method: Method?, isFallbackHandler: Bool, handler: @escaping RequestHandler)
 }
 
 /// A client that's useful for unit tests
@@ -32,7 +32,7 @@ public struct TestClient : HTTPRemote {
 }
 
 /// A basic router
-open class TrieRouter {
+open class TrieRouter : Router {
     public struct Config {
         /// The UTF-8 character in front of a token
         ///
@@ -107,7 +107,7 @@ open class TrieRouter {
             return fallback ?? self.fallbackHandler
         }
         
-        guard let handler = node.handlers[request.method] else {
+        guard let handler = node.handlers[request.method] ?? node.anyMethodHandler else {
             return fallback ?? self.fallbackHandler
         }
         
@@ -115,7 +115,7 @@ open class TrieRouter {
     }
     
     /// A public API for registering a new route
-    public func register(at path: [String], method: Method, isFallbackHandler: Bool = false, handler: @escaping RequestHandler) {
+    public func register(at path: [String], method: Method?, isFallbackHandler: Bool = false, handler: @escaping RequestHandler) {
         let basePath = path.map { $0.split(separator: "/") }.reduce([], +).map(String.init)
         
         let path = basePath.flatMap { component in
@@ -130,7 +130,7 @@ open class TrieRouter {
     }
     
     /// An internal API to register a new route with slightly more performance
-    internal func register(at path: [UTF8String], method: Method, isFallbackHandler: Bool, handler: @escaping RequestHandler) {
+    internal func register(at path: [UTF8String], method: Method?, isFallbackHandler: Bool, handler: @escaping RequestHandler) {
         var node = self.node
         var path = path.filter { $0.byteCount > 0 }
         
@@ -164,8 +164,10 @@ open class TrieRouter {
         
         if isFallbackHandler {
             node.fallbackHandler = handler
-        } else {
+        } else if let method = method {
             node.handlers[method] = handler
+        } else {
+            node.anyMethodHandler = handler
         }
     }
     
@@ -176,6 +178,8 @@ open class TrieRouter {
 final class TrieRouterNode {
     /// All rotues at this path
     internal var handlers = [Method : RequestHandler]()
+    
+    internal var anyMethodHandler: RequestHandler? = nil
     
     /// Gets called if a path mathces until this node, but a more specific route could not be found
     internal var fallbackHandler: RequestHandler? = nil

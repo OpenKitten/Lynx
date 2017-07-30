@@ -4,7 +4,7 @@ public protocol Router {
     func handle(_ request: Request, for remote: HTTPRemote)
     
     /// Registers a new route
-    func register(at path: [String], method: Method, isFallbackHandler: Bool, handler: @escaping RequestHandler)
+    func register(at path: [String], method: Method?, isFallbackHandler: Bool, handler: @escaping RequestHandler)
 }
 
 /// A client that's useful for unit tests
@@ -32,7 +32,7 @@ public struct TestClient : HTTPRemote {
 }
 
 /// A basic router
-open class TrieRouter {
+open class TrieRouter : Router {
     public struct Config {
         /// The UTF-8 character in front of a token
         ///
@@ -115,7 +115,7 @@ open class TrieRouter {
     }
     
     /// A public API for registering a new route
-    public func register(at path: [String], method: Method, isFallbackHandler: Bool = false, handler: @escaping RequestHandler) {
+    public func register(at path: [String], method: Method?, isFallbackHandler: Bool = false, handler: @escaping RequestHandler) {
         let basePath = path.map { $0.split(separator: "/") }.reduce([], +).map(String.init)
         
         let path = basePath.flatMap { component in

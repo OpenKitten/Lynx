@@ -125,16 +125,27 @@ open class Request : Codable {
     public var body: Body?
     
     /// Creates a new request
-    public init(method: Method, path: Path, headers: Headers = [:], body: UnsafeMutableBufferPointer<UInt8>? = nil, deallocating: Bool = false) {
+    public init(method: Method, path: Path, headers: Headers = [:], body: Body? = nil) {
         self.method = method
         self.path = path
         self.headers = headers
-        
-        if let body = body {
-            self.body = Body(pointingTo: body, deallocating: deallocating)
-        } else {
-            self.body = nil
-        }
+        self.body = body
+    }
+    
+    /// Creates a new request
+    public init(method: Method, path: Path, headers: Headers = [:], bodyRepresentable body: BodyRepresentable) throws {
+        self.method = method
+        self.path = path
+        self.headers = headers
+        self.body = try body.makeBody()
+    }
+    
+    /// Creates a new request from a raw buffer
+    public init(method: Method, path: Path, headers: Headers = [:], body: UnsafeMutableBufferPointer<UInt8>, deallocating: Bool = false) {
+        self.method = method
+        self.path = path
+        self.headers = headers
+        self.body = Body(pointingTo: body, deallocating: deallocating)
     }
 }
 

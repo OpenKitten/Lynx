@@ -4,7 +4,7 @@ public protocol Router {
     func handle(_ request: Request, for remote: HTTPRemote)
     
     /// Registers a new route
-    func register(at path: [String], method: Method, handler: @escaping RequestHandler)
+    func register(at path: [String], method: Method, isFallbackHandler: Bool, handler: @escaping RequestHandler)
 }
 
 /// A client that's useful for unit tests
@@ -41,38 +41,6 @@ open class TrieRouter {
         /// If this is `nil`, no token prefixes exist for path parameters, thus path parameters will not be processed
         public var tokenByte: UInt8? = 0x3a
         
-        /// If a path component consists exclusively of this literal it'll be seen as an "any" component, meaning any component matches this
-        ///
-        /// Example route using the default setting: `/api/v1/*/friends/`
-        ///
-        /// **Matches:**
-        ///
-        /// `/api/v1/joannis/friends/`
-        ///
-        /// **Does not match:**
-        ///
-        /// `/api/v1/friends/`
-        ///
-        /// `/api/v1/joannis/profile/friends/`
-        ///
-        /// If this is `nil`, the "anyComponent" check will not be run, thus paths need to be entered literally
-        public var anyComponent: String?
-        
-        /// If a path component consists exclusively of this literal it'll be seen as an "any" set of components, meaning any multiple components match this
-        ///
-        /// Example route using the default setting: `/api/v1/**/friends/`
-        ///
-        /// Matches:
-        ///
-        /// `/api/v1/friends/`
-        ///
-        /// `/api/v1/joannis/friends/`
-        ///
-        /// `/api/v1/testuser/profile/friends/`
-        ///
-        /// If this is `nil`, the "anyComponent" check will not be run, thus paths need to be entered literally
-        public var anyMultiComponents: String? = "**"
-        
         /// Creates a new basic config file
         public init() {}
     }
@@ -95,27 +63,23 @@ open class TrieRouter {
     
     /// Handles a request from the HTTP server
     public func handle(_ request: Request, for remote: HTTPRemote) {
-        guard let node = findNode(at: request.path, for: request) else {
-            self.fallbackHandler(request, remote)
-            return
-        }
-        
-        guard let handler = node.leafs[request.method] else {
-            self.fallbackHandler(request, remote)
-            return
-        }
+        let handler = findNode(at: request.path, for: request)
         
         handler(request, remote)
     }
     
     /// Finds a matching route
-    fileprivate func findNode(at path: Path, for request: Request) -> TrieRouterNode? {
+    fileprivate func findNode(at path: Path, for request: Request) -> RequestHandler {
         var node = self.node
         var currentIndex = 0
         let components = path.components
+        var fallback: RequestHandler? = nil
         
         recursiveSearch: for component in components {
-            defer { currentIndex = currentIndex &+ 1 }
+            defer {
+                currentIndex = currentIndex &+ 1
+                fallback = node.fallbackHandler ?? fallback
+            }
             
             guard component.count > 0 else {
                 continue
@@ -140,14 +104,18 @@ open class TrieRouter {
                 }
             }
             
-            return nil
+            return fallback ?? self.fallbackHandler
         }
         
-        return node
+        guard let handler = node.handlers[request.method] else {
+            return fallback ?? self.fallbackHandler
+        }
+        
+        return handler
     }
     
     /// A public API for registering a new route
-    public func register(at path: [String], method: Method, handler: @escaping RequestHandler) {
+    public func register(at path: [String], method: Method, isFallbackHandler: Bool = false, handler: @escaping RequestHandler) {
         let basePath = path.map { $0.split(separator: "/") }.reduce([], +).map(String.init)
         
         let path = basePath.flatMap { component in
@@ -158,11 +126,11 @@ open class TrieRouter {
             }
         }.flatMap { UTF8String(bytes: [UInt8]($0.utf8)) }
             
-        self.register(at: path, method: method, handler: handler)
+        self.register(at: path, method: method, isFallbackHandler: isFallbackHandler, handler: handler)
     }
     
     /// An internal API to register a new route with slightly more performance
-    internal func register(at path: [UTF8String], method: Method, handler: @escaping RequestHandler) {
+    internal func register(at path: [UTF8String], method: Method, isFallbackHandler: Bool, handler: @escaping RequestHandler) {
         var node = self.node
         var path = path.filter { $0.byteCount > 0 }
         
@@ -194,7 +162,11 @@ open class TrieRouter {
             node = newNode
         }
         
-        node.leafs[method] = handler
+        if isFallbackHandler {
+            node.fallbackHandler = handler
+        } else {
+            node.handlers[method] = handler
+        }
     }
     
     internal var node = TrieRouterNode(at: [], component: UTF8String())
@@ -203,7 +175,10 @@ open class TrieRouter {
 /// A node used to keep track of routes
 final class TrieRouterNode {
     /// All rotues at this path
-    internal var leafs = [Method : RequestHandler]()
+    internal var handlers = [Method : RequestHandler]()
+    
+    /// Gets called if a path mathces until this node, but a more specific route could not be found
+    internal var fallbackHandler: RequestHandler? = nil
     
     /// This last path component
     internal var component: UTF8String

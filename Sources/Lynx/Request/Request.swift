@@ -1,22 +1,14 @@
 /// An HTTP Request method
 ///
 /// Used to provide information about the kind of action being requested
-public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible {
+public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible, ExpressibleByStringLiteral {
     /// Decodes a method from a String
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         
         let string = try container.decode(String.self).uppercased()
         
-        switch string {
-        case "GET": self = .get
-        case "PUT": self = .put
-        case "POST": self = .post
-        case "PATCH": self = .patch
-        case "DELETE": self = .delete
-        case "OPTIONS": self = .options
-        default: self = .other(string)
-        }
+        self.init(string)
     }
     
     /// Debug helper, allows you to `po` a method and get it's debugDescription
@@ -105,6 +97,34 @@ public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible 
         case (.other(let lhsString), .other(let rhsString)): return lhsString == rhsString
         default: return false
         }
+    }
+    
+    /// Creates a new method from a String
+    public init(_ string: String ){
+        switch string {
+        case "GET": self = .get
+        case "PUT": self = .put
+        case "POST": self = .post
+        case "PATCH": self = .patch
+        case "DELETE": self = .delete
+        case "OPTIONS": self = .options
+        default: self = .other(string)
+        }
+    }
+    
+    /// Instantiate a Method from a String literal
+    public init(stringLiteral value: String) {
+        self.init(value)
+    }
+    
+    /// Instantiate a Method from a String literal
+    public init(unicodeScalarLiteral value: String) {
+        self.init(value)
+    }
+    
+    /// Instantiate a Method from a String literal
+    public init(extendedGraphemeClusterLiteral value: String) {
+        self.init(value)
     }
 }
 

@@ -15,20 +15,27 @@ fileprivate let notFoundSignature = [UInt8]("HTTP/1.1 404 NOT FOUND\r\n".utf8)
 ///
 /// TODO: Add more status codes
 public enum Status : ExpressibleByIntegerLiteral {
+    /// upgrade is used for upgrading the connection to a new protocol, such as WebSocket or HTTP/2
     case upgrade
     
+    /// A successful response
     case ok
     
+    /// The resource has not been found
     case notFound
     
+    /// An internal error occurred
     case internalServerError
     
+    /// Something yet to be implemented
     case custom(code: Int, message: String)
     
+    /// Checks of two Statuses are equal
     public static func ==(lhs: Status, rhs: Status) -> Bool {
         return lhs.code == rhs.code
     }
     
+    /// The HTTP status code
     public var code: Int {
         switch self {
         case .upgrade: return 101
@@ -66,6 +73,7 @@ public enum Status : ExpressibleByIntegerLiteral {
         }
     }
     
+    /// Creates a new status from an integer literal
     public init(integerLiteral value: Int) {
         self.init(value)
     }
@@ -75,6 +83,7 @@ public enum Status : ExpressibleByIntegerLiteral {
 ///
 /// To be returned to a client
 public class Response : Codable {
+    /// Encodes the response to a dictionary-type
     public func encode(to encoder: Encoder) throws {
         let body = try self.body?.makeBody()
         var container = encoder.container(keyedBy: Response.CodingKeys.self)
@@ -84,6 +93,7 @@ public class Response : Codable {
         try container.encode(body, forKey: .body)
     }
     
+    /// Decodes the response from a dictionary-type
     public required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: Response.CodingKeys.self)
         
@@ -92,6 +102,7 @@ public class Response : Codable {
         self.body = try container.decodeIfPresent(Body.self, forKey: .body)
     }
     
+    /// Used internally for encoding/decoding purposes
     fileprivate enum CodingKeys : String, Swift.CodingKey {
         case status, headers, body
     }
@@ -123,12 +134,17 @@ public class Response : Codable {
     }
 }
 
+/// HTTP Remotes are used for receiving errors and responses
+///
+/// This is usually a socket, but may also be another source with bidirectional communication
 public protocol HTTPRemote {
     func send(_ response: Response) throws
     func error(_ error: Error)
 }
 
+/// Makes the TCPClient an HTTPRemote
 extension Client : HTTPRemote {
+    /// Handles the error and closes the connection
     public func error(_ error: Error) {
         if let error = error as? Encodable & Error {
             Client.errorHandler?(error, self)
@@ -137,6 +153,7 @@ extension Client : HTTPRemote {
         self.close()
     }
     
+    /// Sends the serialized HTTP response over the socket
     public func send(_ response: Response) throws {
         let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: 65_536)
         pointer.initialize(to: 0, count: 65_536)
@@ -195,11 +212,13 @@ extension Client : HTTPRemote {
 }
 
 extension Status : Codable {
+    /// Makes status encodable by encoding it to an int
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(self.code)
     }
     
+    /// Makes status decodable by decoding it from an int
     public init(from decoder: Decoder) throws {
         self.init(try decoder.singleValueContainer().decode(Int.self))
     }

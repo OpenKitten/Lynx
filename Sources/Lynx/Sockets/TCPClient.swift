@@ -21,10 +21,14 @@ public class TCPClient : TCPSocket {
         try super.init(hostname: hostname, port: port)
     }
     
+    /// Connects the TCP client after initialization
     public func connect() throws {
         try self.connect(startReading: true)
     }
     
+    /// Connects the TCP client but allows the reading to not start yet
+    ///
+    /// Useful if you need to connect the socket but need to run another layer first, such as SSL
     internal func connect(startReading: Bool = true) throws {
         if startReading {
             self.readSource.setEventHandler(qos: .userInteractive) {

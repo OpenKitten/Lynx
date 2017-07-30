@@ -7,21 +7,32 @@ final class QueryStorage {
         self.utf8String = UTF8String(buffer: buffer)
     }
     
+    init(utf8String: UTF8String) {
+        self.utf8String = utf8String
+    }
+    
     init() {
         self.utf8String = UTF8String()
     }
 }
 
 /// Usable for queries in paths or query encoded forms
-public struct Query : CustomDebugStringConvertible {
+public struct Query : CustomDebugStringConvertible, RawRepresentable {
     let storage: QueryStorage
     
-    public var string: String {
-        return storage.utf8String.makeString() ?? ""
+    /// The query's string representation
+    public var rawValue: String {
+        return self.storage.utf8String.makeString() ?? ""
     }
     
+    /// Creates a new Query from a String
+    public init?(rawValue: String) {
+        self.storage = QueryStorage(utf8String: UTF8String(bytes: [UInt8](rawValue.utf8)))
+    }
+    
+    /// A debug description is used for helping with debugging
     public var debugDescription: String {
-        return self.storage.utf8String.makeString() ?? ""
+        return self.rawValue
     }
     
     /// Creates a new query without unnecessary copies

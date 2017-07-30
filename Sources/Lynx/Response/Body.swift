@@ -4,6 +4,7 @@ import Foundation
 ///
 /// Crafted from a mutable buffer pointer that can be deallocated
 public class Body : Codable {
+    /// Decodes the body from binary data
     public required init(from decoder: Decoder) throws {
         let data = try decoder.singleValueContainer().decode(Data.self)
         
@@ -17,6 +18,7 @@ public class Body : Codable {
         self.deallocate = true
     }
     
+    /// Encodes the body to binary Data
     public func encode(to encoder: Encoder) throws {
         var encoder = encoder.singleValueContainer()
         try encoder.encode(Data(buffer))

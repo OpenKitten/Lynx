@@ -142,10 +142,12 @@ public struct Client {
         self.holder.listen()
     }
     
+    /// Closes the socket
     public func close() {
         self.holder.close()
     }
     
+    /// Checks if the client is still connected
     public var isConnected: Bool {
         return holder.isConnected
     }

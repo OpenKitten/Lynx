@@ -1,7 +1,8 @@
 /// An HTTP Request method
 ///
 /// Used to provide information about the kind of action being requested
-public enum Method : Equatable, Hashable, Codable {
+public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible {
+    /// Decodes a method from a String
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         
@@ -18,6 +19,12 @@ public enum Method : Equatable, Hashable, Codable {
         }
     }
     
+    /// Debug helper, allows you to `po` a method and get it's debugDescription
+    public var debugDescription: String {
+        return string
+    }
+    
+    /// Represents this method as a String
     public var string: String {
         switch self {
         case .get: return "GET"
@@ -30,6 +37,7 @@ public enum Method : Equatable, Hashable, Codable {
         }
     }
     
+    /// Encodes this method to a String
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(self.string)
@@ -72,6 +80,7 @@ public enum Method : Equatable, Hashable, Codable {
     /// This `.other` contains the provided METHOD
     case other(String)
     
+    /// A hashValue is useful for using the method in a dictionary
     public var hashValue: Int {
         switch self {
         case .get: return 2000
@@ -84,6 +93,7 @@ public enum Method : Equatable, Hashable, Codable {
         }
     }
     
+    /// Compares two methods to be equal
     public static func ==(lhs: Method, rhs: Method) -> Bool {
         switch (lhs, rhs) {
         case (.get, .get): return true
@@ -100,9 +110,18 @@ public enum Method : Equatable, Hashable, Codable {
 
 /// Class so you don't copy the data at all and treat them like a state machine
 open class Request : Codable {
+    /// The HTTP method, the operation type
     public let method: Method
+    
+    /// The path at which the operation is done
     public var path: Path
+    
+    /// The headers provide metadata
     public var headers: Headers
+    
+    /// The body is used to provide concrete information with relation to the operation
+    ///
+    /// Often contains a form, Multipart, file or JSON
     public var body: Body?
     
     /// Creates a new request

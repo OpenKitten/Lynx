@@ -1,13 +1,20 @@
+/// A router, can register routes and route requests
 public protocol Router {
+    /// Handles incoming requests
     func handle(_ request: Request, for remote: HTTPRemote)
+    
+    /// Registers a new route
     func register(at path: [String], method: Method, handler: @escaping RequestHandler)
 }
 
+/// A client that's useful for unit tests
 public struct TestClient : HTTPRemote {
+    /// Handles an error during the handling of the request
     public func error(_ error: Error) {
         fail(error)
     }
     
+    /// Handle the Response
     public func send(_ response: Response) throws {
         try handler(response)
     }
@@ -17,6 +24,7 @@ public struct TestClient : HTTPRemote {
     let handler: ResponseHandler
     let fail: ((Error)->())
     
+    /// Create a new unit test client
     public init(_ handler: @escaping ResponseHandler, or fail: @escaping ((Error)->())) {
         self.handler = handler
         self.fail = fail
@@ -25,19 +33,59 @@ public struct TestClient : HTTPRemote {
 
 /// A basic router
 open class TrieRouter {
+    public struct Config {
+        /// The UTF-8 character in front of a token
+        ///
+        /// In `/users/:id/` the token is `:id` and the tokenByte is `:` as UTF-8 character
+        ///
+        /// If this is `nil`, no token prefixes exist for path parameters, thus path parameters will not be processed
+        public var tokenByte: UInt8? = 0x3a
+        
+        /// If a path component consists exclusively of this literal it'll be seen as an "any" component, meaning any component matches this
+        ///
+        /// Example route using the default setting: `/api/v1/*/friends/`
+        ///
+        /// **Matches:**
+        ///
+        /// `/api/v1/joannis/friends/`
+        ///
+        /// **Does not match:**
+        ///
+        /// `/api/v1/friends/`
+        ///
+        /// `/api/v1/joannis/profile/friends/`
+        ///
+        /// If this is `nil`, the "anyComponent" check will not be run, thus paths need to be entered literally
+        public var anyComponent: String?
+        
+        /// If a path component consists exclusively of this literal it'll be seen as an "any" set of components, meaning any multiple components match this
+        ///
+        /// Example route using the default setting: `/api/v1/**/friends/`
+        ///
+        /// Matches:
+        ///
+        /// `/api/v1/friends/`
+        ///
+        /// `/api/v1/joannis/friends/`
+        ///
+        /// `/api/v1/testuser/profile/friends/`
+        ///
+        /// If this is `nil`, the "anyComponent" check will not be run, thus paths need to be entered literally
+        public var anyMultiComponents: String? = "**"
+        
+        /// Creates a new basic config file
+        public init() {}
+    }
+    
     /// This will be called if no route is found
     public var fallbackHandler: RequestHandler = NotFound(body: "Not found").handle
     
-    /// The UTF-8 character in front of a token
-    ///
-    /// In `/users/:id/` the token is `:id` and the tokenByte is `:` as UTF-8 character
-    public let tokenByte: UInt8?
-    public let splitPaths: Bool
+    /// The router's configuration
+    public let config: TrieRouter.Config
     
     /// Creates a new router
-    public init(startingTokensWith byte: UInt8? = nil, splittingPaths: Bool = true) {
-        self.tokenByte = byte
-        self.splitPaths = splittingPaths
+    public init(config: TrieRouter.Config = TrieRouter.Config()) {
+        self.config = config
     }
     
     /// Changes the default handler
@@ -74,7 +122,7 @@ open class TrieRouter {
             }
             
             for subNode in node.subNodes {
-                let isToken = subNode.component.firstByte == tokenByte && subNode.component.byteCount > 1
+                let isToken = subNode.component.firstByte == self.config.tokenByte && subNode.component.byteCount > 1
                 
                 // colon is acceptable for tokenized strings
                 if subNode.component == component || isToken {
@@ -100,16 +148,10 @@ open class TrieRouter {
     
     /// A public API for registering a new route
     public func register(at path: [String], method: Method, handler: @escaping RequestHandler) {
-        let basePath: [String]
-        
-        if splitPaths {
-            basePath = path.map { $0.split(separator: "/") }.reduce([], +).map(String.init)
-        } else {
-            basePath = path
-        }
+        let basePath = path.map { $0.split(separator: "/") }.reduce([], +).map(String.init)
         
         let path = basePath.flatMap { component in
-            if component.utf8.first == tokenByte {
+            if component.utf8.first == self.config.tokenByte {
                 return component
             } else {
                 return component.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)

@@ -1,9 +1,11 @@
 /// An HTTP request path
-public struct Path : Hashable, CustomDebugStringConvertible, Codable, ExpressibleByStringLiteral, RawRepresentable {
+public struct Path : Hashable, CustomDebugStringConvertible, Codable, ExpressibleByStringLiteral, RawRepresentable, Sequence {
+    /// Creates a new Path from a String from RawRepresentable
     public init?(rawValue: String) {
         self.init(url: rawValue)
     }
     
+    /// Decodes a path from a String including query parameters
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let string = try container.decode(String.self)
@@ -11,6 +13,16 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
         self.init(url: string)
     }
     
+    /// Iterates over all path components
+    public func makeIterator() -> IndexingIterator<[String]> {
+        let components = self.components.flatMap { component in
+            String(bytes: component, encoding: .utf8)
+        }
+        
+        return components.makeIterator()
+    }
+    
+    /// Encodes the path as a String including query parameters
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(self.rawValue)
@@ -47,7 +59,7 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
         let path = String(bytes: bytes, encoding: .utf8) ?? ""
         
         if self.query.storage.utf8String.byteCount > 0 {
-            let query = self.query.string
+            let query = self.query.rawValue
             return path + "?" + query
         }
         
@@ -64,7 +76,7 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
         return lhs.utf8String == rhs.utf8String
     }
     
-    /// Creates a new path
+    /// Creates a new path from the pre-separated path and query buffer
     init(path: UnsafeBufferPointer<UInt8>, query: UnsafeBufferPointer<UInt8>?) {
         self.utf8String = UTF8String(buffer: path)
         
@@ -75,6 +87,7 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
         }
     }
     
+    /// Initializes a path from a String URL
     public init(url: String) {
         let buffer = [UInt8](url.utf8)
         
@@ -92,14 +105,17 @@ public struct Path : Hashable, CustomDebugStringConvertible, Codable, Expressibl
         }
     }
     
+    /// String literal initializer
     public init(stringLiteral value: String) {
         self.init(url: value)
     }
     
+    /// String literal initializer
     public init(unicodeScalarLiteral value: String) {
         self.init(url: value)
     }
     
+    /// String literal initializer
     public init(extendedGraphemeClusterLiteral value: String) {
         self.init(url: value)
     }

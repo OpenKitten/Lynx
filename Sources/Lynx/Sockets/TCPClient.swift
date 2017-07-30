@@ -41,6 +41,8 @@ public class TCPClient : TCPSocket {
             self.readSource.setCancelHandler {
                 self.close()
             }
+            
+            self.readSource.resume()
         }
         
         let addr =  UnsafeMutablePointer<sockaddr>(OpaquePointer(self.server))
@@ -56,10 +58,6 @@ public class TCPClient : TCPSocket {
             guard errno == EINPROGRESS || errno == EISCONN else {
                 throw TCPError.unableToConnect
             }
-        }
-        
-        if startReading {
-            self.readSource.resume()
         }
     }
     

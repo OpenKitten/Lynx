@@ -11,7 +11,7 @@ fileprivate var len: socklen_t = 4
 
 public class TCPSocket {
     /// Returns whether the socket is actively connected
-    var isConnected: Bool {
+    public var isConnected: Bool {
         var error = 0
         getsockopt(self.descriptor, SOL_SOCKET, SO_ERROR, &error, &len)
         

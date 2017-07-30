@@ -106,7 +106,7 @@ public final class TCPSSLClient : TCPClient {
                     return
                 }
                 
-                onRead(self.incomingBuffer.pointer, read)
+                self.onRead(self.incomingBuffer.pointer, read)
             }
             
             self.readSource.setCancelHandler(qos: .userInteractive) {
@@ -136,6 +136,8 @@ public final class TCPSSLClient : TCPClient {
             guard result == errSecSuccess || result == errSSLPeerAuthCompleted else {
                 throw TCPError.unableToConnect
             }
+            
+            self.readSource.resume()
         }
     #else
         public init(hostname: String, port: UInt16, onRead: @escaping ReadCallback) throws {

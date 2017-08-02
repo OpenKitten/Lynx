@@ -59,6 +59,22 @@ public class Body : Codable {
 public protocol BodyRepresentable {
     /// Creates a body
     func makeBody() throws -> Body
+    func write(_ writer: ((UnsafeBufferPointer<UInt8>) throws -> ())) throws
+}
+
+public protocol File : BodyRepresentable {
+    var name: String { get }
+    var mimeType: String { get }
+}
+
+extension BodyRepresentable {
+    public func write(_ writer: ((UnsafeBufferPointer<UInt8>) throws -> ())) throws {
+        let body = try self.makeBody()
+        
+        let buffer = UnsafeBufferPointer(start: body.buffer.baseAddress, count: body.buffer.count)
+        
+        try writer(buffer)
+    }
 }
 
 /// Makes Body representative of a body (thus itself)

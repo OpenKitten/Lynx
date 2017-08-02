@@ -36,7 +36,10 @@ public class TCPClient : TCPSocket {
                 let read = recv(self.descriptor, self.incomingBuffer.pointer, Int(UInt16.max), 0)
                 
                 guard read != 0 else {
-                    self.readSource.cancel()
+                    guard errno != EWOULDBLOCK else {
+                        self.readSource.cancel()
+                        return
+                    }
                     return
                 }
                 

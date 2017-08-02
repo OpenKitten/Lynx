@@ -433,10 +433,10 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
             let header = cookieKey.bytes + [0x3a, 0x20]
             
             let cookies = cookies.map({ name, cookie in
-                return [UInt8](name.utf8) + [0x3d] + cookie.serialized()
+                return header + [UInt8](name.utf8) + [0x3d] + cookie.serialized()
             }).joined(separator: [0x3b, 0x20])
             
-            self.storage.serialized.append(contentsOf: header + cookies + [0x0d, 0x0a])
+            self.storage.serialized.append(contentsOf: cookies + [0x0d, 0x0a])
         }
     }
     

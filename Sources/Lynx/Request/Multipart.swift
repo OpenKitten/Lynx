@@ -35,64 +35,67 @@ fileprivate let attachment = [UInt8]("attachment;".utf8)
 
 /// A parsed Multipart Form
 public final class MultipartForm {
-    /// The request containing the body
-    ///
-    /// A reference is kept to keep the pointers pointing to alive data
-    ///
-    /// This prevents unnecessary copies
-    let request: Request
-    
     /// The parsed parts
-    let parts: [Part]
+    public var parts: [Part]
+    public let boundary: [UInt8]
     
     /// A single Multipart pair
     ///
     /// Contains a key and value
     public struct Part {
         /// A multipart value type
-        enum PartType {
+        public enum PartType {
             /// A string value
             case value
+            case mime(String)
         }
         
-        let name: UnsafeBufferPointer<UInt8>
-        let type: PartType
-        let data: UnsafeBufferPointer<UInt8>
-        
-        /// The key associated with this part
-        public var key: String {
-            return String(bytes: name, encoding: .utf8) ?? ""
-        }
+        public let name: String?
+        public let type: PartType
+        public let data: BodyRepresentable
         
         /// Parses the String value associated with this part, if possible/reasonable
         public var string: String? {
-            guard type == .value else {
+            guard case .value = type, let body = try? data.makeBody() else {
                 return nil
             }
             
-            return String(bytes: data, encoding: .utf8)
+            return String(bytes: body.buffer, encoding: .utf8)
         }
     }
     
+    public func append(_ file: File) {
+        let part = Part(name: file.name, type: .mime(file.mimeType), data: file)
+        self.parts.append(part)
+    }
+    
+    public func append(_ body: BodyRepresentable, MIME: String) {
+        let part = Part(name: nil, type: .mime(MIME), data: body)
+        self.parts.append(part)
+    }
+    
+    let strongReference: AnyObject?
+    
     /// Accesses a Part at the provided key, if there is any
     public subscript(_ key: String) -> MultipartForm.Part? {
-        let key = [UInt8](key.utf8)
-        
-        for part in parts {
-            guard let address = part.name.baseAddress else {
-                continue
-            }
-            
-            if part.name.count == key.count && memcmp(address, key, key.count) == 0 {
-                return part
-            }
+        for part in parts where part.name == key {
+            return part
         }
         
         return nil
     }
     
+    public init(boundary: String, parts: [Part] = []) {
+        self.boundary = [UInt8](boundary.utf8)
+        self.parts = parts
+        self.strongReference = nil
+    }
+    
     /// Creates a new multipart form
     init?(boundary: [UInt8], bodyFrom request: Request) {
+        self.boundary = boundary
+        self.strongReference = request
+        
         guard let buffer = request.body else {
             return nil
         }
@@ -127,7 +130,6 @@ public final class MultipartForm {
                 }
                 
                 self.parts = parts
-                self.request = request
                 return
             }
             
@@ -172,6 +174,10 @@ public final class MultipartForm {
                 // Take the name of the field
                 let nameBuffer = base.buffer(until: &currentPosition)
                 
+                guard let name = String(bytes: nameBuffer, encoding: .utf8) else {
+                    return nil
+                }
+                
                 // `\r\n\r\n` after the name, to start the value
                 guard 6 < length, base[0] == 0x0d, base[1] == 0x0a, base[2] == 0x0d, base[3] == 0x0a else {
                     return nil
@@ -199,11 +205,19 @@ public final class MultipartForm {
                 // Point to the stored data
                 let dataBuffer = base.buffer(until: &total)
                 
+                guard let baseAddress = dataBuffer.baseAddress else {
+                    return nil
+                }
+                
+                let bufferPointer = UnsafeMutablePointer<UInt8>.allocate(capacity: dataBuffer.count)
+                bufferPointer.assign(from: baseAddress, count: dataBuffer.count)
+                let buffer = UnsafeMutableBufferPointer(start: bufferPointer, count: dataBuffer.count)
+                
                 // skip \n
                 base = base.advanced(by: 1)
                 
                 // Append the part
-                parts.append(Part(name: nameBuffer, type: .value, data: dataBuffer))
+                parts.append(Part(name: name, type: .value, data: Body(pointingTo: buffer, deallocating: true)))
             } else {
                 // unsupported
                 return nil
@@ -211,8 +225,40 @@ public final class MultipartForm {
         }
         
         self.parts = parts
-        self.request = request
     }
+    
+//    public func write(_ writer: ((UnsafeBufferPointer<UInt8>) throws -> ())) throws {
+//        let buffer = Buffer(capacity: Int(UInt16.max))
+//        let fullBoundary = [0x2d, 0x2d] + boundary
+//        var offset = 0
+//
+//        func write(_ data: [UInt8]) {
+//            memcpy(buffer.pointer.advanced(by: offset), data, data.count)
+//            offset += data.count
+//        }
+//
+//        func writeString(_ string: String) {
+//            write([UInt8](string.utf8))
+//        }
+//
+//        func writeBoundary() {
+//            write(fullBoundary + [0x0d, 0x0a])
+//        }
+//
+//        for part in parts {
+//            writeBoundary()
+//
+//            if case .mime(let mime) = part.type {
+//                writeString("Content-Type: \(mime); charset=utf8\r\n\r\n")
+//            }
+//
+//            part.data
+//        }
+//    }
+//
+//    public func makeBody() throws -> Body {
+//        fatalError()
+//    }
 }
 
 // MARK - Copy for swift inline optimization

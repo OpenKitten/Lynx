@@ -158,6 +158,13 @@ public struct Client {
     }
     
     /// Sends new data to the client
+    public func send(buffer: UnsafeBufferPointer<UInt8>) throws {
+        if let pointer = buffer.baseAddress {
+            try self.send(data: pointer, withLengthOf: buffer.count)
+        }
+    }
+    
+    /// Sends new data to the client
     public func send(data pointer: UnsafePointer<UInt8>, withLengthOf length: Int) throws {
         #if os(Linux)
             let sent = Glibc.send(self.holder.descriptor, pointer, length, 0)

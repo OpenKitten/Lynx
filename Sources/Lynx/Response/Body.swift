@@ -18,6 +18,16 @@ public class Body : Codable {
         self.deallocate = true
     }
     
+    public convenience init(_ writer: ((((UnsafeBufferPointer<UInt8>) throws -> ()))->())) throws {
+        var array = [UInt8]()
+        
+        writer { buffer in
+            array.append(contentsOf: buffer)
+        }
+        
+        self.init(array)
+    }
+    
     /// Encodes the body to binary Data
     public func encode(to encoder: Encoder) throws {
         var encoder = encoder.singleValueContainer()

@@ -99,9 +99,13 @@ public final class TCPSSLClient : TCPClient {
             
             self.readSource.setEventHandler(qos: .userInteractive) {
                 var read = 0
-                SSLRead(self.sslClient, self.incomingBuffer.pointer, Int(UInt16.max), &read)
+                let error = SSLRead(self.sslClient, self.incomingBuffer.pointer, Int(UInt16.max), &read)
                 
                 guard read != 0 else {
+                    if error == errSSLWouldBlock {
+                        return
+                    }
+                    
                     self.readSource.cancel()
                     return
                 }

@@ -69,15 +69,21 @@ public class Body : Codable {
 public protocol BodyRepresentable {
     /// Creates a body
     func makeBody() throws -> Body
+    
+    /// Useful for writing the body in chunks, reducing memory usage
     func write(_ writer: ((UnsafeBufferPointer<UInt8>) throws -> ())) throws
 }
 
+/// A common file protocol
+///
+/// Useful for file uploading, receiving fileuploads, file storage and mail attachments 
 public protocol File : BodyRepresentable {
     var name: String { get }
     var mimeType: String { get }
 }
 
 extension BodyRepresentable {
+    /// Writes the entire body's data in one go
     public func write(_ writer: ((UnsafeBufferPointer<UInt8>) throws -> ())) throws {
         let body = try self.makeBody()
         

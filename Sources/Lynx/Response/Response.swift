@@ -169,7 +169,7 @@ extension Client : HTTPRemote {
         memcpy(pointer, signature, consumed)
         
         guard response.headers.buffer.count &+ consumed &+ 2 < 65_536, let headersAddress = response.headers.buffer.baseAddress else {
-            fatalError()
+            throw TCPError.unsupported
         }
         
         // headers

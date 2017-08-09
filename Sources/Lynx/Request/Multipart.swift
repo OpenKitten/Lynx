@@ -47,7 +47,7 @@ public final class MultipartForm {
         public enum PartType {
             /// A string value
             case value
-            case mime(String)
+            case file(mime: String, name: String)
         }
         
         public let name: String?
@@ -65,12 +65,12 @@ public final class MultipartForm {
     }
     
     public func append(_ file: File) {
-        let part = Part(name: file.name, type: .mime(file.mimeType), data: file)
+        let part = Part(name: file.name, type: .file(mime: file.mimeType, name: file.name), data: file)
         self.parts.append(part)
     }
     
-    public func append(_ body: BodyRepresentable, MIME: String) {
-        let part = Part(name: nil, type: .mime(MIME), data: body)
+    public func append(file body: BodyRepresentable, named name: String, MIME: String) {
+        let part = Part(name: nil, type: .file(mime: MIME, name: name), data: body)
         self.parts.append(part)
     }
     
@@ -178,46 +178,123 @@ public final class MultipartForm {
                     return nil
                 }
                 
-                // `\r\n\r\n` after the name, to start the value
-                guard 6 < length, base[0] == 0x0d, base[1] == 0x0a, base[2] == 0x0d, base[3] == 0x0a else {
+                guard 6 < length else {
                     return nil
                 }
                 
-                length = length &- 4
-                base = base.advanced(by: 4)
-                var total = 0
-                
-                repeat {
-                    // Scan until the end of the value
-                    base.peek(until: 0x0d, length: &length, offset: &currentPosition)
-                    total = total &+ currentPosition
+                func readContentsBuffer() -> UnsafeMutableBufferPointer<UInt8>? {
+                    // Keep track of the content length
+                    var total = 0
                     
-                    // `\r\n` at the end of a value
-                    // start of next boundary, after `\r\n`
-                } while length >= 4 &+ boundary.count && !(
-                      base[-1] == 0x0d && base[0] == 0x0a && base[1] == 0x2d &&
-                        base[2] == 0x2d && memcmp(base.advanced(by: 3), boundary, boundary.count) == 0)
-                
-                guard length > boundary.count &+ 4 else {
-                    return nil
+                    repeat {
+                        // Scan until the end of the value
+                        base.peek(until: 0x0d, length: &length, offset: &currentPosition)
+                        total = total &+ currentPosition
+                        
+                        // `\r\n` at the end of a value
+                        // start of next boundary, after `\r\n`
+                    } while length >= 4 &+ boundary.count && !(
+                        base[-1] == 0x0d && base[0] == 0x0a && base[1] == 0x2d &&
+                            base[2] == 0x2d && memcmp(base.advanced(by: 3), boundary, boundary.count) == 0)
+                    
+                    guard length > boundary.count &+ 4 else {
+                        return nil
+                    }
+                    
+                    // Point to the stored data
+                    let dataBuffer = base.buffer(until: &total)
+                    
+                    guard let baseAddress = dataBuffer.baseAddress else {
+                        return nil
+                    }
+                    
+                    let bufferPointer = UnsafeMutablePointer<UInt8>.allocate(capacity: dataBuffer.count)
+                    bufferPointer.assign(from: baseAddress, count: dataBuffer.count)
+                    
+                    // skip \n
+                    base = base.advanced(by: 1)
+                    
+                    return UnsafeMutableBufferPointer(start: bufferPointer, count: dataBuffer.count)
                 }
                 
-                // Point to the stored data
-                let dataBuffer = base.buffer(until: &total)
-                
-                guard let baseAddress = dataBuffer.baseAddress else {
-                    return nil
+                // Returns success without throwing
+                func readValue() -> Bool {
+                    // Skip 4 bytes, the "\r\n\r\n"
+                    length = length &- 4
+                    base = base.advanced(by: 4)
+                    
+                    guard let buffer = readContentsBuffer() else {
+                        return false
+                    }
+                    
+                    // Append the part
+                    parts.append(Part(name: name, type: .value, data: Body(pointingTo: buffer, deallocating: true)))
+                    return true
                 }
                 
-                let bufferPointer = UnsafeMutablePointer<UInt8>.allocate(capacity: dataBuffer.count)
-                bufferPointer.assign(from: baseAddress, count: dataBuffer.count)
-                let buffer = UnsafeMutableBufferPointer(start: bufferPointer, count: dataBuffer.count)
+                func readFile() -> Bool {
+                    func parseHeaders() -> Headers {
+                        let start = base
+                        
+                        while true {
+                            // \n
+                            base.peek(until: 0x0a, length: &length, offset: &currentPosition)
+                            
+                            guard currentPosition > 0 else {
+                                return Headers()
+                            }
+                            
+                            if length > 1, base[-2] == 0x0d, base[0] == 0x0d, base[1] == 0x0a {
+                                defer {
+                                    base = base.advanced(by: 2)
+                                    length = length &- 2
+                                }
+                                
+                                return Headers(serialized: UnsafeBufferPointer(start: start, count: start.distance(to: base)))
+                            }
+                        }
+                    }
+                    
+                    // '"' scan for the start of the file name
+                    base.peek(until: 0x22, length: &length, offset: &currentPosition)
+                    
+                    guard currentPosition > 1 else {
+                        return false
+                    }
+                    
+                    // '"' Scan for the end of the file name
+                    base.peek(until: 0x22, length: &length, offset: &currentPosition)
+                    
+                    let filenameBuffer = base.buffer(until: &currentPosition)
+                    
+                    guard let filename = String(bytes: filenameBuffer, encoding: .utf8) else {
+                        return false
+                    }
+                    
+                    let headers = parseHeaders()
+                    
+                    let type = String(headers["Content-Type"]) ?? "*/*"
+                    
+                    guard let buffer = readContentsBuffer() else {
+                        return false
+                    }
+                    
+                    // Append the part
+                    parts.append(Part(name: name, type: .file(mime: type, name: filename), data: Body(pointingTo: buffer, deallocating: true)))
+                    return true
+                }
                 
-                // skip \n
-                base = base.advanced(by: 1)
-                
-                // Append the part
-                parts.append(Part(name: name, type: .value, data: Body(pointingTo: buffer, deallocating: true)))
+                // `\r\n\r\n` after the name, to start the value
+                if base[0] == 0x0d, base[1] == 0x0a, base[2] == 0x0d, base[3] == 0x0a {
+                    guard readValue() else {
+                        return nil
+                    }
+                    // '; filename="'
+                } else if base[0] == 0x3b {
+                    guard readFile() else {
+                        return nil
+                    }
+                }
             } else {
                 // unsupported
                 return nil

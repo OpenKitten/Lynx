@@ -47,7 +47,13 @@ public struct Cookies : Sequence, ExpressibleByDictionaryLiteral {
                     continue
                 }
                 
-                cookies.append((String(keyValue[0]), Cookie(valueOf: String(keyValue[1]))))
+                var name = String(keyValue[0])
+                
+                if name.starts(with: "Cookie: ") {
+                    name.removeFirst("Cookie: ".count)
+                }
+                
+                cookies.append((name, Cookie(valueOf: String(keyValue[1]))))
             }
             
             for (key, cookie) in cookies {

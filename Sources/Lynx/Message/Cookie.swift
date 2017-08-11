@@ -1,3 +1,4 @@
+import Foundation
 fileprivate let cookieStart: HeaderKey = "Cookie: "
 fileprivate let setCookieStart: HeaderKey = "Set-Cookie: "
 
@@ -115,7 +116,16 @@ extension String {
 
 public struct Cookie : ExpressibleByStringLiteral {
     public var value: String
-    
+
+    //GMT Time
+    public var expires: Date?
+    public var maxAge: TimeInterval?
+
+    // If browsers use session restoring, the session cookie may be considered permanent
+    public var sessionCookie : Bool {
+        return expires == nil && maxAge == nil
+    }
+
     public init(valueOf value: String) {
         self.value = value
     }

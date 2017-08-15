@@ -21,6 +21,7 @@ class CookieTests: XCTestCase {
     }
     
     func testExample() throws {
+        let expectation = XCTestExpectation(description: "timeout")
         let http = try HTTPServer() { request, handler in
             do {
                 guard let multipart = request.multipart else {
@@ -60,10 +61,14 @@ class CookieTests: XCTestCase {
             let task = sesh.dataTask(with: req) { (data, res, err) in
                 let http = res as! HTTPURLResponse
                 XCTAssertNotNil(http.allHeaderFields["Set-Cookie"])
+                expectation.fulfill()
             }
             task.resume()
         }
-        try http.start()
+        try dispatch_async_main_rethrows { () -> Void in
+            try http.start()
+        }
+        self.wait(for: [expectation], timeout: 6.0)
 
 
     }

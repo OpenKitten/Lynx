@@ -61,3 +61,7 @@ public final class HTTPServer {
         client.startListening()
     }
 }
+
+public protocol Curls {
+    var curlRepresentation: String { get }
+}

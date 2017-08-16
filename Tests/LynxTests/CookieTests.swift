@@ -24,19 +24,6 @@ class CookieTests: XCTestCase {
         let expectation = XCTestExpectation(description: "timeout")
         let http = try HTTPServer() { request, handler in
             do {
-                guard let multipart = request.multipart else {
-                    try handler.send(Response(status: 404))
-                    return
-                }
-
-                for part in multipart.parts {
-                    guard case .file(_) = part.type else {
-                        continue
-                    }
-
-
-                }
-
                 try handler.send(Response(status: 200))
             } catch {
                 handler.error(error)
@@ -48,6 +35,7 @@ class CookieTests: XCTestCase {
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         req.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+        req.setValue("Cookie: SID=31d4d96e407aad42; lang=en-US", forHTTPHeaderField: "Cookie")
         let cookie = HTTPCookie(properties: [HTTPCookiePropertyKey.comment : "",
                                              HTTPCookiePropertyKey.path : "/",
                                              HTTPCookiePropertyKey.name : "MyFavoriteCookie",

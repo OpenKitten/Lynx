@@ -1,7 +1,7 @@
 /// An HTTP Request method
 ///
 /// Used to provide information about the kind of action being requested
-public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible, ExpressibleByStringLiteral {
+public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible, ExpressibleByStringLiteral, Curls {
     /// Decodes a method from a String
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -14,6 +14,10 @@ public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible,
     /// Debug helper, allows you to `po` a method and get it's debugDescription
     public var debugDescription: String {
         return string
+    }
+
+    public var curlRepresentation: String {
+        return "-X \(string) \\\n"
     }
     
     /// Represents this method as a String
@@ -169,26 +173,22 @@ open class Request : Codable, CustomStringConvertible, CustomDebugStringConverti
     }
 
     public var description: String {
-        func curlHeaders(_ headers: Headers) -> String {
-            var curled = ""
-            headers.description.enumerateLines { (line, stop) in
-                curled += "\t-H \"\(line)\" \\\n"
-                print(stop)
-            }
-            return curled
-        }
+        return debugDescription
+    }
+
+    public var curlRepresentation: String {
         let curl = """
 
-                    curl -i \\
-                     -X \(method) \\
-                    \(curlHeaders(headers))\(host)\(path)
-                   """
+        curl -i \\
+        \(method.curlRepresentation)\(headers.curlRepresentation)\"\(host)\(path)\"
+        """
 
 
         return curl
     }
+
     public var debugDescription: String {
-        return description
+        return curlRepresentation
     }
 
 }

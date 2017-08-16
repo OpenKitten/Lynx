@@ -20,10 +20,12 @@ class CookieTests: XCTestCase {
         super.tearDown()
     }
     
-    func testExample() throws {
+    func testCookieParsing() throws {
         let expectation = XCTestExpectation(description: "timeout")
         let http = try HTTPServer() { request, handler in
             do {
+                let cookieCount = request.cookies.count
+                XCTAssert(cookieCount == 2)
                 try handler.send(Response(status: 200))
             } catch {
                 handler.error(error)
@@ -35,7 +37,9 @@ class CookieTests: XCTestCase {
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         req.setValue("text/plain", forHTTPHeaderField: "Content-Type")
-        req.setValue("Cookie: SID=31d4d96e407aad42; lang=en-US", forHTTPHeaderField: "Cookie")
+        req.setValue("SID=31d4d96e407aad42; lang=en-US", forHTTPHeaderField: "Cookie")
+
+        //TODO: This cookie appears to not read into headers
         let cookie = HTTPCookie(properties: [HTTPCookiePropertyKey.comment : "",
                                              HTTPCookiePropertyKey.path : "/",
                                              HTTPCookiePropertyKey.name : "MyFavoriteCookie",
@@ -48,7 +52,6 @@ class CookieTests: XCTestCase {
             sleep(1)
             let task = sesh.dataTask(with: req) { (data, res, err) in
                 let http = res as! HTTPURLResponse
-                XCTAssertNotNil(http.allHeaderFields["Set-Cookie"])
                 expectation.fulfill()
             }
             task.resume()

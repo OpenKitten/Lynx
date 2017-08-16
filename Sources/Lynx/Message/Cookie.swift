@@ -25,6 +25,10 @@ public struct Cookies : Sequence, ExpressibleByDictionaryLiteral {
             cookies[key] = newValue
         }
     }
+
+    public var count: UInt {
+        return cookies.count
+    }
     
     public init(dictionaryLiteral elements: (String, Cookie)...) {
         for (key, cookie) in elements {

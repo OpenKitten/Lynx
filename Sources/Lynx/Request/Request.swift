@@ -129,7 +129,7 @@ public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible,
 }
 
 /// Class so you don't copy the data at all and treat them like a state machine
-open class Request : Codable {
+open class Request : Codable, CustomStringConvertible, CustomDebugStringConvertible {
     /// The HTTP method, the operation type
     public let method: Method
     
@@ -167,6 +167,30 @@ open class Request : Codable {
         self.headers = headers
         self.body = Body(pointingTo: body, deallocating: deallocating)
     }
+
+    public var description: String {
+        func curlHeaders(_ headers: Headers) -> String {
+            var curled = ""
+            headers.description.enumerateLines { (line, stop) in
+                curled += "\t-H \"\(line)\" \\\n"
+                print(stop)
+            }
+            return curled
+        }
+        let curl = """
+
+                    curl -i \\
+                     -X \(method) \\
+                    \(curlHeaders(headers))\(host)\(path)
+                   """
+
+
+        return curl
+    }
+    public var debugDescription: String {
+        return description
+    }
+
 }
 
 

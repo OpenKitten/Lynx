@@ -148,7 +148,7 @@ fileprivate final class HeadersStorage {
 }
 
 /// HTTP headers
-public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvertible, Sequence, Codable {
+public struct Headers : ExpressibleByDictionaryLiteral, CustomStringConvertible, CustomDebugStringConvertible, Sequence, Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: HeaderKey.self)
         
@@ -171,6 +171,10 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
     private let storage: HeadersStorage
     
     public var debugDescription: String {
+        return description
+    }
+
+    public var description: String {
         return String(bytes: self.buffer, encoding: .utf8) ?? ""
     }
     

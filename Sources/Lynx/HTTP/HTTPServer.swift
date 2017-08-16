@@ -8,6 +8,9 @@
 import Dispatch
 import Foundation
 
+//TODO: find better solution to expose host than pollute global namespace
+var host: String = ""
+
 /// A handler, receives a request and it's client
 ///
 /// Should handle all parts of the further response itself, including closing the socket when appropriate
@@ -29,6 +32,7 @@ public final class HTTPServer {
     public init(hostname: String = "0.0.0.0", port: UInt16 = 8080, handler: @escaping RequestHandler) throws {
         self.handle = handler
         self.tcpServer = try TCPServer(hostname: hostname, port: port, onConnect: connection)
+        host = "http://\(hostname):\(port)" //TLS?
     }
     
     /// Starts serving the HTTP server

@@ -65,7 +65,7 @@ class CookieTests: XCTestCase {
             }
             task.resume()
         }
-        try dispatch_async_main_rethrows { () -> Void in
+        try dispatch_async_global_rethrows { () -> Void in
             try http.start()
         }
         self.wait(for: [expectation], timeout: 6.0)

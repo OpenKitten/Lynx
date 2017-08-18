@@ -19,50 +19,43 @@ class CookieTests: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
         super.tearDown()
     }
-    
-    func testCookieParsing() throws {
+
+    func testConnection() throws {
         let expectation = XCTestExpectation(description: "timeout")
+
+        let c1 = ("SID", "31d4d96e407aad42")
+        let c2 = ("lang", "en-US")
+
+
         let http = try HTTPServer() { request, handler in
-            do {
-                let cookieCount = request.cookies.count
-                XCTAssert(cookieCount == 2)
-                try handler.send(Response(status: 200))
-            } catch {
-                handler.error(error)
-            }
+            let cookies = request.cookies
+            XCTAssert(cookies.count == 2)
+            XCTAssert(cookies[c1.0]! == c1.1)
+            XCTAssert(cookies[c2.0]! == c2.1)
+            expectation.fulfill()
         }
 
-        let sesh = URLSession.shared
-        let url = URL(string: "http://127.0.0.1:8080/")!
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue("text/plain", forHTTPHeaderField: "Content-Type")
-        req.setValue("SID=31d4d96e407aad42; lang=en-US", forHTTPHeaderField: "Cookie")
+        let tcpClient = try! TCPClient(hostname: "127.0.0.1", port: 8080) { (ptr, i) in
 
-        //TODO: This cookie appears to not read into headers
-        let cookie = HTTPCookie(properties: [HTTPCookiePropertyKey.comment : "",
-                                             HTTPCookiePropertyKey.path : "/",
-                                             HTTPCookiePropertyKey.name : "MyFavoriteCookie",
-                                             HTTPCookiePropertyKey.value : "DefinitelyMostValuedCookie",
-                                             HTTPCookiePropertyKey.domain : "127.0.0.1:8080"])!
-        HTTPCookieStorage.shared.setCookies([cookie], for: url, mainDocumentURL: nil)
-
-        // We request latently, to get around http server starting synchronously
-        DispatchQueue.global().async {
+        }
+        try dispatch_async_rethrows(dispatchQueue: DispatchQueue(label: "com.mongokitten.tcpconnect", qos: .userInteractive)) {
             sleep(1)
-            let task = sesh.dataTask(with: req) { (data, res, err) in
-                let http = res as! HTTPURLResponse
-                expectation.fulfill()
+
+            try tcpClient.connect()
+            try tcpClient.send(Request(method: .get, path: "/", headers: [
+                "Cookie":  HeaderKey("\(c1.0)=\(c1.1); \(c2.0)=\(c2.1)")
+                ]))
             }
-            task.resume()
-        }
-        try dispatch_async_global_rethrows { () -> Void in
+
+
+        try dispatch_async_global_rethrows {
             try http.start()
         }
+
         self.wait(for: [expectation], timeout: 6.0)
 
-
     }
+
     
     func testPerformanceExample() {
         // This is an example of a performance test case.

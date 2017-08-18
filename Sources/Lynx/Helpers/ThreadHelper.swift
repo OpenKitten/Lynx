@@ -7,10 +7,10 @@
 
 import Foundation
 
-func dispatch_async_global_rethrows(_ block: @escaping () throws -> Void ) rethrows {
+func dispatch_async_rethrows(dispatchQueue: DispatchQueue, _ block: @escaping () throws -> Void) rethrows {
     func logic(_  block: @escaping () throws -> Void, thrower: @escaping ((Error) throws -> ())) rethrows {
         var err: Error? = nil
-        DispatchQueue.global().async {
+        dispatchQueue.async {
             do {
                 try block()
             }
@@ -25,4 +25,8 @@ func dispatch_async_global_rethrows(_ block: @escaping () throws -> Void ) rethr
     try logic(block) { err in
         throw err
     }
+}
+
+func dispatch_async_global_rethrows(_ block: @escaping () throws -> Void ) rethrows {
+    try dispatch_async_rethrows(dispatchQueue: DispatchQueue.global(), block)
 }

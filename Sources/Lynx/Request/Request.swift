@@ -133,7 +133,7 @@ public enum Method : Equatable, Hashable, Codable, CustomDebugStringConvertible,
 }
 
 /// Class so you don't copy the data at all and treat them like a state machine
-open class Request : Codable, CustomStringConvertible, CustomDebugStringConvertible {
+open class Request : Codable, CustomStringConvertible, CustomDebugStringConvertible, Curls {
     /// The HTTP method, the operation type
     public let method: Method
     

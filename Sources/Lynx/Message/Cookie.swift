@@ -26,7 +26,7 @@ public struct Cookies : Sequence, ExpressibleByDictionaryLiteral {
         }
     }
 
-    public var count: UInt {
+    public var count: Int {
         return cookies.count
     }
     
@@ -144,6 +144,14 @@ public struct Cookie : ExpressibleByStringLiteral {
     
     public init(extendedGrahemeLiteral value: String) {
         self.value = value
+    }
+
+    public static func ==(lhs: Cookie, rhs: String) -> Bool {
+        return lhs.value == rhs
+    }
+
+    public static func ==(lhs: String, rhs: Cookie) -> Bool {
+        return rhs.value == lhs
     }
     
     internal func serialized() -> [UInt8] {

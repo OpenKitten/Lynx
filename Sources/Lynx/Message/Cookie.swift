@@ -1,3 +1,4 @@
+import Foundation
 fileprivate let cookieStart: HeaderKey = "Cookie: "
 fileprivate let setCookieStart: HeaderKey = "Set-Cookie: "
 
@@ -23,6 +24,10 @@ public struct Cookies : Sequence, ExpressibleByDictionaryLiteral {
         set {
             cookies[key] = newValue
         }
+    }
+
+    public var count: Int {
+        return cookies.count
     }
     
     public init(dictionaryLiteral elements: (String, Cookie)...) {
@@ -115,7 +120,16 @@ extension String {
 
 public struct Cookie : ExpressibleByStringLiteral {
     public var value: String
-    
+
+    //GMT Time
+    public var expires: Date?
+    public var maxAge: TimeInterval?
+
+    // If browsers use session restoring, the session cookie may be considered permanent
+    public var sessionCookie : Bool {
+        return expires == nil && maxAge == nil
+    }
+
     public init(valueOf value: String) {
         self.value = value
     }
@@ -130,6 +144,14 @@ public struct Cookie : ExpressibleByStringLiteral {
     
     public init(extendedGrahemeLiteral value: String) {
         self.value = value
+    }
+
+    public static func ==(lhs: Cookie, rhs: String) -> Bool {
+        return lhs.value == rhs
+    }
+
+    public static func ==(lhs: String, rhs: Cookie) -> Bool {
+        return rhs.value == lhs
     }
     
     internal func serialized() -> [UInt8] {

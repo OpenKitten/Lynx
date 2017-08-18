@@ -148,7 +148,7 @@ fileprivate final class HeadersStorage {
 }
 
 /// HTTP headers
-public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvertible, Sequence, Codable {
+public struct Headers : ExpressibleByDictionaryLiteral, CustomStringConvertible, CustomDebugStringConvertible, Sequence, Codable, Curls {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: HeaderKey.self)
         
@@ -171,6 +171,10 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
     private let storage: HeadersStorage
     
     public var debugDescription: String {
+        return curlRepresentation
+    }
+
+    public var description: String {
         return String(bytes: self.buffer, encoding: .utf8) ?? ""
     }
     
@@ -438,6 +442,14 @@ public struct Headers : ExpressibleByDictionaryLiteral, CustomDebugStringConvert
             
             self.storage.serialized.append(contentsOf: cookies + [0x0d, 0x0a])
         }
+    }
+
+    public var curlRepresentation: String {
+        var curled = ""
+        description.enumerateLines { (line, stop) in
+            curled += "\t-H \"\(line)\" \\\n"
+        }
+        return curled
     }
     
     /// Creates a new empty header
